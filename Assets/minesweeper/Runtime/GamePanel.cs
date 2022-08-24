@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Kilomelo.minesweeper.Runtime
@@ -5,11 +6,17 @@ namespace Kilomelo.minesweeper.Runtime
     public class GamePanel : MonoBehaviour
     {
         private Game _game;
-        // Start is called before the first frame update
-        void Start()
+        [SerializeField] private int randSeed = 0;
+
+        private void Awake()
         {
             _game = new Game();
-            _game.Init();
+        }
+
+        void OnEnable()
+        {
+            _game.Init(randSeed);
+            Debug.Log(_game.ToString());
         }
 
         // Update is called once per frame
