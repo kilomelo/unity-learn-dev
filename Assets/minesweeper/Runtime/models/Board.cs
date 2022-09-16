@@ -28,6 +28,14 @@ namespace Kilomelo.minesweeper.Runtime
         private int _width;
         private int _height;
         private int _mineCnt;
+        private int _3bv;
+        /// <summary>
+        /// 同一空白连通区域地块列表缓存
+        /// key: area idx, value: list of blockIdx
+        /// </summary>
+        private Dictionary<int, List<int>> _areaBlockListDic;
+
+        public int ThreeBV => _3bv;
         public int Width => _width;
         public int Height => _height;
         public int MinCnt => _mineCnt;
@@ -40,7 +48,7 @@ namespace Kilomelo.minesweeper.Runtime
             return _data[idx];
         }
 
-        public Board(int width, int height, int mineCnt)
+        internal Board(int width, int height, int mineCnt)
         {
             if (mineCnt > width * height)
                 throw new Exception("mine count out of range.");
@@ -49,7 +57,7 @@ namespace Kilomelo.minesweeper.Runtime
             _mineCnt = mineCnt;
         }
 
-        public void Init(Random rand)
+        internal void Init(Random rand)
         {
             var data = new int[_width * _height];
             for (var i = 0; i < _mineCnt; i++)
@@ -67,26 +75,39 @@ namespace Kilomelo.minesweeper.Runtime
                 data[i] = neighborBlocks.Count(neighbor => neighbor >= 0 && data[neighbor] == (int) EBlockType.Mine);
             }
             // 标记连续空白
-            var blankIdx = -1;
+            _areaBlockListDic = new Dictionary<int, List<int>>();
+            var areaIdx = -1;
+            List<int> listOfBlockIdx = new List<int>();
             for (var i = 0; i < data.Length; i++)
             {
-            
-                if (FillBlank(data, i, blankIdx)) blankIdx--;
+                var areaSize = FillBlank(data, i, areaIdx, listOfBlockIdx);
+                if (areaSize > 0)
+                {
+                    Debug.Log($"Area {areaIdx} has {areaSize} blocks");
+                    _areaBlockListDic[areaIdx] = listOfBlockIdx;
+                    areaIdx--;
+                    listOfBlockIdx = new List<int>();
+                }
                 // todo exception
-                if (int.MinValue == blankIdx) throw new IndexOutOfRangeException("");
+                if (int.MinValue == areaIdx) throw new IndexOutOfRangeException("");
             }
             // 统计3bv
-            var threeBV = -blankIdx - 1;
+            _3bv = -areaIdx - 1;
             for (var i = 0; i < data.Length; i++)
             {
                 if ((int) EBlockType.Mine == data[i] || data[i] < 0) continue;
                 var neighborBlocks = NeighberIdxList(i);
                 if (neighborBlocks.Any(neighbor => neighbor  >= 0 && data[neighbor] < 0)) continue;
-                threeBV++;
+                _3bv++;
             }
-            Debug.Log($"3bv: {threeBV}");
+            Debug.Log($"3bv: {_3bv}");
 
             _data = data;
+        }
+
+        internal List<int> GetAreaBlockList(int areaIdx)
+        {
+            return _areaBlockListDic.TryGetValue(areaIdx, out var list) ? list : null;
         }
         
         private int UpIdx(int idx)
@@ -162,23 +183,33 @@ namespace Kilomelo.minesweeper.Runtime
         /// </summary>
         /// <param name="data"></param>
         /// <param name="seedIdx"></param>
-        /// <param name="fillNum"></param>
-        /// <returns></returns>
-        private bool FillBlank(IList<int> data, int seedIdx, int fillNum, int depth = 0)
+        /// <param name="areaIdx"></param>
+        /// <param name="blockList"></param>
+        /// <param name="depth"></param>
+        /// <returns>返回连通区域尺寸</returns>
+        private int FillBlank(IList<int> data, int seedIdx, int areaIdx, List<int> blockList, int depth = 0)
         {
-            if (depth > 999 * 999) return false;
-            if (0 > seedIdx || data.Count - 1 < seedIdx || 0 != data[seedIdx]) return false;
-            data[seedIdx] = fillNum;
+            if (depth > 999 * 999) return 0;
+            if (0 > seedIdx || data.Count - 1 < seedIdx) return 0;
+            if ((int) EBlockType.Mine == data[seedIdx] || 0 > data[seedIdx]) return 0;
+            if (0 < data[seedIdx])
+            {
+                if (0 == depth) return 0;
+                blockList.Add(seedIdx);
+                return 1;
+            }
+            data[seedIdx] = areaIdx;
+            blockList.Add(seedIdx);
+            var areaSize = 1;
             // todo optimize
-            FillBlank(data, UpIdx(seedIdx), fillNum, depth + 1);
-            FillBlank(data, DownIdx(seedIdx), fillNum, depth + 1);
-            FillBlank(data, LeftIdx(seedIdx), fillNum, depth + 1);
-            FillBlank(data, RightIdx(seedIdx), fillNum, depth + 1);
-            return true;
+            areaSize += FillBlank(data, UpIdx(seedIdx), areaIdx, blockList, depth + 1);
+            areaSize += FillBlank(data, DownIdx(seedIdx), areaIdx, blockList, depth + 1);
+            areaSize += FillBlank(data, LeftIdx(seedIdx), areaIdx, blockList, depth + 1);
+            areaSize += FillBlank(data, RightIdx(seedIdx), areaIdx, blockList, depth + 1);
+            return areaSize;
         }
 
-        private List<int> _cacheList8 = new List<int>(8);
-
+        private readonly List<int> _cacheList8 = new List<int>(8);
         private string Data2String(int[] data, int width)
         {
             var sb = new StringBuilder();

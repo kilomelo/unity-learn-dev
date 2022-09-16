@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -18,6 +19,10 @@ namespace Kilomelo.minesweeper.Runtime
         private Game _game;
         private Board _board;
         private int _lastPressedBlockIdx = -1;
+        // /// <summary>
+        // /// 同一空白连通区域地块列表缓存
+        // /// </summary>
+        // private Dictionary<int, List<int>> _blankAreaBlockListCache = new Dictionary<int, List<int>>();
 
         private bool _valid;
 
@@ -41,7 +46,7 @@ namespace Kilomelo.minesweeper.Runtime
             if (!_valid) throw new Exception("");
         }
 
-        public Color NumberColor(int num)
+        internal Color NumberColor(int num)
         {
             CheckValid();
             // todo exception
@@ -60,6 +65,7 @@ namespace Kilomelo.minesweeper.Runtime
                 }
                 _blocks = null;
             }
+            // _blankAreaBlockListCache.Clear();
         }
 
         internal void SetData(Game game, Board board)
@@ -70,6 +76,30 @@ namespace Kilomelo.minesweeper.Runtime
             _game = game ?? throw new NullReferenceException("");
             Clear();
             InitBlocks();
+        }
+
+        internal void BlockChangedCallback(int changedBlockIdx)
+        {
+            // 如果是单个地块
+            if (changedBlockIdx >= 0)
+            {
+                // todo exception
+                if (changedBlockIdx > _blocks.Length - 1) throw new ArgumentOutOfRangeException("");
+                _blocks[changedBlockIdx].Open();
+            }
+            // 如果是区域
+            else
+            {
+                // todo 根据区域信息刷新block
+                // if (_blankAreaBlockListCache.TryGetValue(changedBlockIdx, out var blockIdxList))
+                // {
+                //     foreach (var blockIdx in blockIdxList) _blocks[blockIdx].Open();
+                // }
+                // else
+                // {
+                //     Debug.LogError($"Update block view failed, area id: {changedBlockIdx}");
+                // }
+            }
         }
 
         private void InitBlocks()
@@ -85,9 +115,22 @@ namespace Kilomelo.minesweeper.Runtime
                 var blockView = blockInstance.GetComponent<BlockView>();
                 // todo exception
                 if (null == blockView) throw new MissingComponentException("");
-                blockView.SetData(_game, i, _board.GetBlock(i), this);
+                var blockType = _board.GetBlock(i);
+                // if (blockType < 0)
+                // {
+                //     List<int> listCache;
+                //     if (!_blankAreaBlockListCache.TryGetValue(blockType, out listCache))
+                //     {
+                //         listCache = new List<int>();
+                //         _blankAreaBlockListCache[blockType] = listCache;
+                //     }
+                //     listCache.Add(i);
+                // }
+                
+                blockView.SetData(_game, i, blockType, this);
                 _blocks[i] = blockView;
             }
+            // break point todo 设置area信息
         }
 
         private GameObject GetBlockInstance()
@@ -99,57 +142,74 @@ namespace Kilomelo.minesweeper.Runtime
 
         public void OnPointerDown(PointerEventData eventData)
         {
-            Debug.Log($"BoardView.OnPointerDown, pos: {eventData.position}, scrollPos: {_scrollRect.normalizedPosition}");
-            _lastPressedBlockIdx = EventData2BlockIdx(eventData);
-            _blocks[_lastPressedBlockIdx].OnPointerDown();
+            // Debug.Log($"BoardView.OnPointerDown, pos: {eventData.position}, scrollPos: {_scrollRect.normalizedPosition}");
+            if (EventData2BlockIdx(eventData, out var blockIdx))
+            {
+                _lastPressedBlockIdx = blockIdx;
+                _blocks[_lastPressedBlockIdx].OnPointerDown();
+            }
         }
 
         public void OnPointerUp(PointerEventData eventData)
         {
-            Debug.Log($"BoardView.OnPointerUp, pos: {eventData.position}");
-            _lastPressedBlockIdx = -1;
-            _blocks[EventData2BlockIdx(eventData)].OnPointerUp();
-
+            // Debug.Log($"BoardView.OnPointerUp, pos: {eventData.position}");
+            if (EventData2BlockIdx(eventData, out var blockIdx))
+            {
+                _lastPressedBlockIdx = -1;
+                _blocks[blockIdx].OnPointerUp();
+            }
         }
 
         public void OnPointerMove(PointerEventData eventData)
         {
-            Debug.Log($"BoardView.OnPointerMove, pos: {eventData.position}");
+            // Debug.Log($"BoardView.OnPointerMove, pos: {eventData.position}");
             if (!eventData.dragging) return;
-            var currentPressedBlock = EventData2BlockIdx(eventData);
-            if (currentPressedBlock != _lastPressedBlockIdx && _lastPressedBlockIdx != -1)
+            if (EventData2BlockIdx(eventData, out var blockIdx))
             {
-                _blocks[_lastPressedBlockIdx].OnPointerDragExit();
+                if (blockIdx != _lastPressedBlockIdx)
+                {
+                    _blocks[blockIdx].OnPointerDragEnter();
+                    _lastPressedBlockIdx = blockIdx;
+                }
             }
-            _blocks[currentPressedBlock].OnPointerDragEnter();
-            _lastPressedBlockIdx = currentPressedBlock;
+            else
+            {
+                _lastPressedBlockIdx = -1;
+            }
+            if (_lastPressedBlockIdx > 0) _blocks[_lastPressedBlockIdx].OnPointerDragExit();
         }
 
-        private int EventData2BlockIdx(PointerEventData eventData)
+        private bool EventData2BlockIdx(PointerEventData eventData, out int blockIdx)
         {
-            // Debug.Log($"scrollRect.contentSize: {_scrollRect.content.rect}");
+            blockIdx = 0;
+            // Debug.Log($"eventData.position: {eventData.position}");
             var viewRect = _scrollRect.viewport.rect;
             var contentRect = _scrollRect.content.rect;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(_scrollRect.viewport, eventData.position,
+                eventData.pressEventCamera, out var localPos);
+            // Debug.Log($"localPos: {localPos}");
+            // Debug.Log($"NormalizedPosition: {_scrollRect.normalizedPosition}");
             var scrollPosX = _scrollRect.normalizedPosition.x * (contentRect.width - viewRect.width);
-            var scrollPosY = (1f - _scrollRect.normalizedPosition.y) * (contentRect.height - viewRect.height);
-            var xPosInBoard = eventData.position.x + scrollPosX;
-            var yPosInBoard = viewRect.height - eventData.position.y + scrollPosY;
+            var scrollPosY = (contentRect.height > viewRect.height ? 1 - _scrollRect.normalizedPosition.y : _scrollRect.normalizedPosition.y) * (contentRect.height - viewRect.height);
             // Debug.Log($"scrollPosX: {scrollPosX}, scrollPosY: {scrollPosY}");
+            
+            var xPosInBoard = localPos.x + scrollPosX;
+            var yPosInBoard = -localPos.y + scrollPosY;
+            // Debug.Log($"xPosInBoard: {xPosInBoard}, yPosInBoard: {yPosInBoard}");
             var xIdx = Mathf.FloorToInt(xPosInBoard / _blockSize);
             var yIdx = Mathf.FloorToInt(yPosInBoard / _blockSize);
             // Debug.Log($"xIdx: {xIdx}, yIdx: {yIdx}");
             if (xIdx < 0 || xIdx >= _board.Width || yIdx < 0 || yIdx >= _board.Height)
             {
-                // todo exception
-                throw new Exception();
+                return false;
             }
-            var blockIdx = xIdx + yIdx * _board.Width;
+            blockIdx = xIdx + yIdx * _board.Width;
             if (blockIdx >= _blocks.Length)
             {
                 // todo exception
                 throw new IndexOutOfRangeException();
             }
-            return blockIdx;
+            return true;
         }
     }
 }

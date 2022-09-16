@@ -25,6 +25,7 @@ namespace Kilomelo.minesweeper.Runtime
             _game = new Game(width, height, mineCnt, randSeed);
             Debug.Log(_game.ToString());
             _boardView.SetData(_game, _game.Board);
+            _game.BockChanged += _boardView.BlockChangedCallback;
         }
     }
 }

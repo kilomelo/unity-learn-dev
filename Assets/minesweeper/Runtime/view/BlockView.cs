@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -14,7 +15,7 @@ namespace Kilomelo.minesweeper.Runtime
         {
             Fog,
             Pressed,
-            Digged
+            Open
         }
         [SerializeField] private Image _fog;
         [SerializeField] private Image _fogPushDown;
@@ -27,8 +28,8 @@ namespace Kilomelo.minesweeper.Runtime
         {
             set
             {
-                if (EBlockViewState.Digged == _state) return;
-                if (EBlockViewState.Digged == value)
+                if (EBlockViewState.Open == _state) return;
+                if (EBlockViewState.Open == value)
                 {
                     _fog.enabled = false;
                     _fogPushDown.enabled = false;
@@ -47,6 +48,7 @@ namespace Kilomelo.minesweeper.Runtime
             }
         }
         private int _idx;
+        private List<int> _adjacentAreaList = new List<int>();
         private Action<int> _digEvent;
         internal void SetData(Game game, int blockIdx, int blockType, BoardView boardView)
         {
@@ -67,6 +69,11 @@ namespace Kilomelo.minesweeper.Runtime
             _fogPushDown.enabled = true;
         }
 
+        internal void SetAdjacentArea(int areaIdx)
+        {
+            _adjacentAreaList.Add(areaIdx);
+        }
+        
         internal void OnPointerDown()
         {
             state = EBlockViewState.Pressed;
@@ -74,7 +81,7 @@ namespace Kilomelo.minesweeper.Runtime
 
         internal void OnPointerUp()
         {
-            state = EBlockViewState.Pressed;
+            state = EBlockViewState.Fog;
             _digEvent?.Invoke(_idx);
         }
 
@@ -86,6 +93,11 @@ namespace Kilomelo.minesweeper.Runtime
         internal void OnPointerDragExit()
         {
             state = EBlockViewState.Fog;
+        }
+
+        internal void Open()
+        {
+            state = EBlockViewState.Open;
         }
     }
 }
