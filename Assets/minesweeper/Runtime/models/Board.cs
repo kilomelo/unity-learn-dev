@@ -31,9 +31,9 @@ namespace Kilomelo.minesweeper.Runtime
         private int _3bv;
         /// <summary>
         /// 同一空白连通区域地块列表缓存
-        /// key: area idx, value: list of blockIdx
+        /// key: area idx or block idx, value: list of blockIdx or null(when single block)
         /// </summary>
-        private Dictionary<int, List<int>> _areaBlockListDic;
+        private Dictionary<int, List<int>> _3bvBlockListDic;
 
         public int ThreeBV => _3bv;
         public int Width => _width;
@@ -75,7 +75,7 @@ namespace Kilomelo.minesweeper.Runtime
                 data[i] = neighborBlocks.Count(neighbor => neighbor >= 0 && data[neighbor] == (int) EBlockType.Mine);
             }
             // 标记连续空白
-            _areaBlockListDic = new Dictionary<int, List<int>>();
+            _3bvBlockListDic = new Dictionary<int, List<int>>();
             var areaIdx = -1;
             List<int> listOfBlockIdx = new List<int>();
             for (var i = 0; i < data.Length; i++)
@@ -84,7 +84,7 @@ namespace Kilomelo.minesweeper.Runtime
                 if (areaSize > 0)
                 {
                     Debug.Log($"Area {areaIdx} has {areaSize} blocks");
-                    _areaBlockListDic[areaIdx] = listOfBlockIdx;
+                    _3bvBlockListDic[areaIdx] = listOfBlockIdx;
                     areaIdx--;
                     listOfBlockIdx = new List<int>();
                 }
@@ -98,16 +98,22 @@ namespace Kilomelo.minesweeper.Runtime
                 if ((int) EBlockType.Mine == data[i] || data[i] < 0) continue;
                 var neighborBlocks = NeighberIdxList(i);
                 if (neighborBlocks.Any(neighbor => neighbor  >= 0 && data[neighbor] < 0)) continue;
+                _3bvBlockListDic[i] = null;
                 _3bv++;
             }
-            Debug.Log($"3bv: {_3bv}");
+            Debug.Log($"3bv: {_3bv}, count of _3bvBlockListDic: {_3bvBlockListDic.Count}");
 
             _data = data;
         }
 
         internal List<int> GetAreaBlockList(int areaIdx)
         {
-            return _areaBlockListDic.TryGetValue(areaIdx, out var list) ? list : null;
+            return _3bvBlockListDic.TryGetValue(areaIdx, out var list) ? list : null;
+        }
+
+        internal bool IsMinimalBlock(int blockIdx)
+        {
+            return _3bvBlockListDic.ContainsKey(blockIdx);
         }
         
         private int UpIdx(int idx)
@@ -206,6 +212,10 @@ namespace Kilomelo.minesweeper.Runtime
             areaSize += FillBlank(data, DownIdx(seedIdx), areaIdx, blockList, depth + 1);
             areaSize += FillBlank(data, LeftIdx(seedIdx), areaIdx, blockList, depth + 1);
             areaSize += FillBlank(data, RightIdx(seedIdx), areaIdx, blockList, depth + 1);
+            areaSize += FillBlank(data, LeftUpIdx(seedIdx), areaIdx, blockList, depth + 1);
+            areaSize += FillBlank(data, LeftDownIdx(seedIdx), areaIdx, blockList, depth + 1);
+            areaSize += FillBlank(data, RightUpIdx(seedIdx), areaIdx, blockList, depth + 1);
+            areaSize += FillBlank(data, RightDownIdx(seedIdx), areaIdx, blockList, depth + 1);
             return areaSize;
         }
 

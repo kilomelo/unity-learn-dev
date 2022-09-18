@@ -7,23 +7,20 @@ using UnityEngine.UI;
 namespace Kilomelo.minesweeper.Runtime
 {
     [RequireComponent(typeof(RectTransform))]
-    public class BoardView : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerMoveHandler
+    public class BoardView : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerMoveHandler, IPointerExitHandler
     {
         [SerializeField] private Color[] _numberColor;
         [SerializeField] private GameObject _blockTemplate;
         [SerializeField] private GridLayoutGroup _blockLayout;
         [SerializeField] private ScrollRect _scrollRect;
-        private RectTransform _rectTrans;
+        [SerializeField] private AudioSource _audioSource;
+
         private float _blockSize;
         private BlockView[] _blocks;
+        private Stack<BlockView> _blockCache = new Stack<BlockView>();
         private Game _game;
         private Board _board;
         private int _lastPressedBlockIdx = -1;
-        // /// <summary>
-        // /// 同一空白连通区域地块列表缓存
-        // /// </summary>
-        // private Dictionary<int, List<int>> _blankAreaBlockListCache = new Dictionary<int, List<int>>();
-
         private bool _valid;
 
         private void Awake()
@@ -33,10 +30,9 @@ namespace Kilomelo.minesweeper.Runtime
                 // todo exception
                 throw new Exception("");
             }
-            _rectTrans = transform as RectTransform;
-            // 只允许正方形格子
-            if (Math.Abs(_blockLayout.cellSize.x - _blockLayout.cellSize.y) > 0.01f) throw new Exception();
-            _blockSize = _blockLayout.cellSize.x;
+            // // 只允许正方形格子
+            // if (Math.Abs(_blockLayout.cellSize.x - _blockLayout.cellSize.y) > 0.01f) throw new Exception();
+            // _blockSize = _blockLayout.cellSize.x;
             _valid = true;
         }
 
@@ -61,11 +57,12 @@ namespace Kilomelo.minesweeper.Runtime
             {
                 foreach (var block in _blocks)
                 {
-                    Destroy(block);
+                    Destroy(block.gameObject);
+                    // block.gameObject.SetActive(false);
+                    // _blockCache.Push(block);
                 }
                 _blocks = null;
             }
-            // _blankAreaBlockListCache.Clear();
         }
 
         internal void SetData(Game game, Board board)
@@ -74,11 +71,13 @@ namespace Kilomelo.minesweeper.Runtime
             // todo exception
             _board = board ?? throw new NullReferenceException("");
             _game = game ?? throw new NullReferenceException("");
+            _blockLayout.cellSize = Vector2.one * _scrollRect.viewport.rect.height / _board.Height;
+            _blockSize = _blockLayout.cellSize.x;
             Clear();
             InitBlocks();
         }
 
-        internal void BlockChangedCallback(int changedBlockIdx)
+        internal void BockChanged(int changedBlockIdx)
         {
             // 如果是单个地块
             if (changedBlockIdx >= 0)
@@ -90,15 +89,39 @@ namespace Kilomelo.minesweeper.Runtime
             // 如果是区域
             else
             {
-                // todo 根据区域信息刷新block
-                // if (_blankAreaBlockListCache.TryGetValue(changedBlockIdx, out var blockIdxList))
-                // {
-                //     foreach (var blockIdx in blockIdxList) _blocks[blockIdx].Open();
-                // }
-                // else
-                // {
-                //     Debug.LogError($"Update block view failed, area id: {changedBlockIdx}");
-                // }
+                // 根据区域信息刷新block
+                var blockList = _board.GetAreaBlockList(changedBlockIdx);
+                if (null == blockList)
+                {
+                    Debug.LogError($"Refresh area {changedBlockIdx} failed, can't find area");
+                }
+                else
+                {
+                    foreach (var blockIdx in blockList)
+                    {
+                        // todo exception
+                        if (0 > blockIdx || blockIdx > _blocks.Length - 1) throw new ArgumentOutOfRangeException("");
+                        _blocks[blockIdx].Open();
+                    }
+                }
+            }
+        }
+
+        internal void GameStateChanged(Game.EGameState gameState)
+        {
+            CheckValid();
+            if (Game.EGameState.BeforeStart == gameState)
+            {
+                Clear();
+                InitBlocks();
+            }
+
+            if (Game.EGameState.GameOver == gameState)
+            {
+                foreach (var block in _blocks)
+                {
+                    block.Open();
+                }
             }
         }
 
@@ -116,21 +139,10 @@ namespace Kilomelo.minesweeper.Runtime
                 // todo exception
                 if (null == blockView) throw new MissingComponentException("");
                 var blockType = _board.GetBlock(i);
-                // if (blockType < 0)
-                // {
-                //     List<int> listCache;
-                //     if (!_blankAreaBlockListCache.TryGetValue(blockType, out listCache))
-                //     {
-                //         listCache = new List<int>();
-                //         _blankAreaBlockListCache[blockType] = listCache;
-                //     }
-                //     listCache.Add(i);
-                // }
                 
                 blockView.SetData(_game, i, blockType, this);
                 _blocks[i] = blockView;
             }
-            // break point todo 设置area信息
         }
 
         private GameObject GetBlockInstance()
@@ -138,6 +150,10 @@ namespace Kilomelo.minesweeper.Runtime
             // todo exception
             if (null == _blockTemplate) throw new NullReferenceException("");
             return Instantiate(_blockTemplate);
+            // if (_blockCache.Count == 0) return Instantiate(_blockTemplate);
+            // var instance = _blockCache.Pop().gameObject;
+            // instance.SetActive(true);
+            // return instance;
         }
 
         public void OnPointerDown(PointerEventData eventData)
@@ -152,31 +168,37 @@ namespace Kilomelo.minesweeper.Runtime
 
         public void OnPointerUp(PointerEventData eventData)
         {
+            if (_lastPressedBlockIdx < 0) return;
             // Debug.Log($"BoardView.OnPointerUp, pos: {eventData.position}");
             if (EventData2BlockIdx(eventData, out var blockIdx))
             {
-                _lastPressedBlockIdx = -1;
-                _blocks[blockIdx].OnPointerUp();
+                if (_lastPressedBlockIdx == blockIdx)
+                {
+                    _blocks[blockIdx].OnPointerUp();
+                    Vibration.Vibrate(50);
+                    _audioSource.Play();
+                }
+                else _blocks[_lastPressedBlockIdx].OnPointerDragExit();
             }
+            _lastPressedBlockIdx = -1;
         }
 
         public void OnPointerMove(PointerEventData eventData)
         {
             // Debug.Log($"BoardView.OnPointerMove, pos: {eventData.position}");
-            if (!eventData.dragging) return;
-            if (EventData2BlockIdx(eventData, out var blockIdx))
+            if (_lastPressedBlockIdx < 0) return;
+            if (eventData.dragging)
             {
-                if (blockIdx != _lastPressedBlockIdx)
-                {
-                    _blocks[blockIdx].OnPointerDragEnter();
-                    _lastPressedBlockIdx = blockIdx;
-                }
-            }
-            else
-            {
+                _blocks[_lastPressedBlockIdx].OnPointerDragExit();
                 _lastPressedBlockIdx = -1;
             }
-            if (_lastPressedBlockIdx > 0) _blocks[_lastPressedBlockIdx].OnPointerDragExit();
+        }
+
+        public void OnPointerExit(PointerEventData eventData)
+        {
+            if (_lastPressedBlockIdx < 0) return;
+            _blocks[_lastPressedBlockIdx].OnPointerDragExit();
+            _lastPressedBlockIdx = -1;
         }
 
         private bool EventData2BlockIdx(PointerEventData eventData, out int blockIdx)

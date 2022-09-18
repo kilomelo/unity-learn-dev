@@ -6,10 +6,6 @@ using UnityEngine.UI;
 namespace Kilomelo.minesweeper.Runtime
 {
     public class BlockView : MonoBehaviour
-        // IPointerDownHandler, IPointerUpHandler,
-        // IPointerEnterHandler, IPointerExitHandler,
-        // IPointerClickHandler, IPointerMoveHandler,
-        // IEndDragHandler
     {
         private enum EBlockViewState
         {
@@ -48,14 +44,19 @@ namespace Kilomelo.minesweeper.Runtime
             }
         }
         private int _idx;
-        private List<int> _adjacentAreaList = new List<int>();
         private Action<int> _digEvent;
         internal void SetData(Game game, int blockIdx, int blockType, BoardView boardView)
         {
             // blank 或 雷
-            if (9 == blockType || 0 > blockType)
+            if (9 == blockType)
             {
-                _number.enabled = false;
+                _number.text = "0";
+                _number.color = boardView.NumberColor(0);
+
+            }
+            else if (0 > blockType)
+            {
+                _number.text = string.Empty;
             }
             else
             {
@@ -64,18 +65,14 @@ namespace Kilomelo.minesweeper.Runtime
             }
             _digEvent = game.Dig;
             _idx = blockIdx;
-            
+            _state = EBlockViewState.Fog;
             _fog.enabled = true;
-            _fogPushDown.enabled = true;
-        }
-
-        internal void SetAdjacentArea(int areaIdx)
-        {
-            _adjacentAreaList.Add(areaIdx);
+            _fogPushDown.enabled = false;
         }
         
         internal void OnPointerDown()
         {
+            Debug.Log($"blockView {_idx} OnPointerDown");
             state = EBlockViewState.Pressed;
         }
 
@@ -92,6 +89,7 @@ namespace Kilomelo.minesweeper.Runtime
         
         internal void OnPointerDragExit()
         {
+            Debug.Log($"blockView {_idx} OnPointerDragExit");
             state = EBlockViewState.Fog;
         }
 

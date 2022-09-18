@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Kilomelo.minesweeper.Runtime
@@ -6,26 +7,33 @@ namespace Kilomelo.minesweeper.Runtime
     {
         private Game _game;
         [SerializeField] private BoardView _boardView;
+        [SerializeField] private ControlView _controlView;
         [SerializeField] private int randSeed = 0;
         [SerializeField] private int width = 8;
         [SerializeField] private int height = 8;
         [SerializeField] private int mineCnt = 8;
-        private void Awake()
-        {
-            // _game = new Game(width, height, mineCnt, randSeed);
-        }
 
-        void OnEnable()
+        void Awake()
         {
-            if (null == _boardView)
+            if (null == _boardView || null == _controlView)
             {
-                Debug.LogError("Board view ref missing");
+                Debug.LogError("view ref missing");
                 return;
             }
+
+            Application.targetFrameRate = 60;
+            randSeed = DateTime.Now.Millisecond;
+            Init();
+        }
+
+        private void Init()
+        {
             _game = new Game(width, height, mineCnt, randSeed);
             Debug.Log(_game.ToString());
             _boardView.SetData(_game, _game.Board);
-            _game.BockChanged += _boardView.BlockChangedCallback;
+            _controlView.SetData(_game);
+            _game.BockChanged += _boardView.BockChanged;
+            _game.GameStateChanged += _boardView.GameStateChanged;
         }
     }
 }

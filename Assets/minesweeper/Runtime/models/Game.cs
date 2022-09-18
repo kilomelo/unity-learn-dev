@@ -6,7 +6,7 @@ namespace Kilomelo.minesweeper.Runtime
 {
     internal class Game
     {
-        private enum EGameState : byte
+        internal enum EGameState : byte
         {
             NotInitialized,
             BeforeStart,
@@ -18,14 +18,38 @@ namespace Kilomelo.minesweeper.Runtime
         private readonly Board _board;
         private readonly Recorder _recorder;
         private EGameState _state = EGameState.NotInitialized;
+
+        private EGameState state
+        {
+            set
+            {
+                if (value == _state)
+                {
+                    Debug.LogWarning("Set Game state with same value.");
+                    return;
+                }
+                _state = value;
+                if (EGameState.Playing == value)
+                {
+                    _startTime = DateTime.Now;
+                }
+                GameStateChanged?.Invoke(_state);
+            }
+        }
+
+        internal EGameState State => _state;
         
         
         private int _randomSeed;
         private Random _rand;
-        public Action<int> BockChanged;
+        private DateTime _startTime;
+        internal Action<int> BockChanged;
+        internal Action<EGameState> GameStateChanged;
+        internal Action<int, int> GameProgressChanged;
+        internal Board Board => _board;
+        internal int CompleteMinimalClick => _recorder?.OpendMinimalClickCnt ?? 0;
+        internal DateTime StartTime => _startTime;
         
-        public Board Board => _board;
-
         internal Game()
         {
             _randomSeed = 0;
@@ -33,7 +57,7 @@ namespace Kilomelo.minesweeper.Runtime
             _board = new Board(8, 8, 1);
             _recorder = new Recorder();
             Init();
-            _state = EGameState.BeforeStart;
+            state = EGameState.BeforeStart;
         }
 
         internal Game(int width, int height, int mineCnt, int randomSeed = 0)
@@ -43,17 +67,29 @@ namespace Kilomelo.minesweeper.Runtime
             _board = new Board(width, height, mineCnt);
             _recorder = new Recorder();
             Init();
-            _state = EGameState.BeforeStart;
+            state = EGameState.BeforeStart;
         }
 
         private void Init()
         {
             _board.Init(_rand);
+            _recorder.Init();
+            GameProgressChanged?.Invoke(0, _board.ThreeBV);
+        }
+
+        internal void Restart()
+        {
+            if (_state == EGameState.Playing || _state == EGameState.Win || _state == EGameState.GameOver)
+            {
+                Init();
+                state = EGameState.BeforeStart;
+            }
         }
 
         internal void Dig(int blockIdx)
         {
             if (EGameState.BeforeStart != _state && EGameState.Playing != _state) return;
+            if (EGameState.BeforeStart == _state) state = EGameState.Playing;
             // Debug.Log($"Dig {blockIdx}'s block");
             var blockValue = _board.GetBlock(blockIdx);
             if ((int)Board.EBlockType.Mine != blockValue)
@@ -63,10 +99,19 @@ namespace Kilomelo.minesweeper.Runtime
                 if (Open(blockIdx, out var changedBlockIdx))
                 {
                     // 记录
-                    if (_recorder.SetOpened(blockValue > 0 ? blockIdx : blockValue) == _board.ThreeBV)
+                    if (_board.IsMinimalBlock(changedBlockIdx))
                     {
-                        // Debug.Log("Win");
-                        // _state = EGameState.Win;
+                        _recorder.SetOpenedMinimal(changedBlockIdx);
+                    }
+                    else
+                    {
+                        _recorder.SetOpened(changedBlockIdx);
+                    }
+                    GameProgressChanged?.Invoke(_recorder.OpendMinimalClickCnt, _board.ThreeBV);
+                    if (_recorder.OpendMinimalClickCnt == _board.ThreeBV)
+                    {
+                        Debug.Log("Win");
+                        state = EGameState.Win;
                     }
                     // 更新view
                     BockChanged?.Invoke(changedBlockIdx);
@@ -74,7 +119,7 @@ namespace Kilomelo.minesweeper.Runtime
             }
             else
             {
-                _state = EGameState.GameOver;
+                state = EGameState.GameOver;
                 Debug.Log("Game Over");
             }
         }
@@ -87,7 +132,7 @@ namespace Kilomelo.minesweeper.Runtime
         /// <returns>指定地块打开动作是否合法</returns>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         /// <exception cref="KeyNotFoundException"></exception>
-        internal bool Open(int blockIdx, out int changedBlockIdx)
+        private bool Open(int blockIdx, out int changedBlockIdx)
         {
             changedBlockIdx = 0;
             if (0 > blockIdx || _board.BlockCnt <= blockIdx)
