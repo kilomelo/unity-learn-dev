@@ -72,7 +72,7 @@ namespace Kilomelo.minesweeper.Runtime
         
         internal void OnPointerDown()
         {
-            Debug.Log($"blockView {_idx} OnPointerDown");
+            // Debug.Log($"blockView {_idx} OnPointerDown");
             state = EBlockViewState.Pressed;
         }
 
@@ -89,7 +89,7 @@ namespace Kilomelo.minesweeper.Runtime
         
         internal void OnPointerDragExit()
         {
-            Debug.Log($"blockView {_idx} OnPointerDragExit");
+            // Debug.Log($"blockView {_idx} OnPointerDragExit");
             state = EBlockViewState.Fog;
         }
 

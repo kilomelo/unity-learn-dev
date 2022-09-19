@@ -470,7 +470,7 @@ AudioSource:
   m_Enabled: 1
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
-  m_audioClip: {fileID: 8300000, guid: 2a0e6910b34d3b544992d039738a9f38, type: 3}
+  m_audioClip: {fileID: 8300000, guid: f7e9bf04cb9d95542bf03875f09c61e6, type: 3}
   m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
@@ -1228,9 +1228,9 @@ MonoBehaviour:
   _boardView: {fileID: 380308860}
   _controlView: {fileID: 476997587}
   randSeed: 0
-  width: 8
-  height: 8
-  mineCnt: 10
+  width: 30
+  height: 16
+  mineCnt: 99
 --- !u!4 &1217861334
 Transform:
   m_ObjectHideFlags: 0

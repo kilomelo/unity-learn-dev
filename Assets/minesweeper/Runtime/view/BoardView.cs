@@ -14,7 +14,7 @@ namespace Kilomelo.minesweeper.Runtime
         [SerializeField] private GridLayoutGroup _blockLayout;
         [SerializeField] private ScrollRect _scrollRect;
         [SerializeField] private AudioSource _audioSource;
-
+        
         private float _blockSize;
         private BlockView[] _blocks;
         private Stack<BlockView> _blockCache = new Stack<BlockView>();
@@ -22,6 +22,9 @@ namespace Kilomelo.minesweeper.Runtime
         private Board _board;
         private int _lastPressedBlockIdx = -1;
         private bool _valid;
+
+        private int _lastHeight = 0;
+        private int _lastWidth = 0;
 
         private void Awake()
         {
@@ -57,24 +60,20 @@ namespace Kilomelo.minesweeper.Runtime
             {
                 foreach (var block in _blocks)
                 {
-                    Destroy(block.gameObject);
-                    // block.gameObject.SetActive(false);
-                    // _blockCache.Push(block);
+                    ReturnBlockInstance(block);
                 }
                 _blocks = null;
             }
         }
 
-        internal void SetData(Game game, Board board)
+        internal void SetData(Game game)
         {
             CheckValid();
             // todo exception
-            _board = board ?? throw new NullReferenceException("");
             _game = game ?? throw new NullReferenceException("");
+            _board = _game.Board ?? throw new NullReferenceException("");
             _blockLayout.cellSize = Vector2.one * _scrollRect.viewport.rect.height / _board.Height;
             _blockSize = _blockLayout.cellSize.x;
-            Clear();
-            InitBlocks();
         }
 
         internal void BockChanged(int changedBlockIdx)
@@ -112,14 +111,34 @@ namespace Kilomelo.minesweeper.Runtime
             CheckValid();
             if (Game.EGameState.BeforeStart == gameState)
             {
-                Clear();
-                InitBlocks();
+                CodeStopwatch.Start();
+                if (_lastHeight != _board.Height || _lastWidth != _board.Width)
+                {
+                    
+                    Clear();
+                    InitBlocks();
+                    _lastWidth = _board.Width;
+                    _lastHeight = _board.Height;
+                }
+                else
+                {
+                    for (var i = 0; i < _board.BlockCnt; i++)
+                    {
+                        var blockView = _blocks[i];
+                        var blockType = _board.GetBlock(i);
+                        blockView.SetData(_game, i, blockType, this);
+                    }
+                }
+                _scrollRect.normalizedPosition = new Vector2(0f, 1f);
+                var time = CodeStopwatch.ElapsedMilliseconds();
+                Debug.Log($"BoardView init time cost: {time}");
             }
 
             if (Game.EGameState.GameOver == gameState)
             {
                 foreach (var block in _blocks)
                 {
+                    
                     block.Open();
                 }
             }
@@ -149,11 +168,21 @@ namespace Kilomelo.minesweeper.Runtime
         {
             // todo exception
             if (null == _blockTemplate) throw new NullReferenceException("");
-            return Instantiate(_blockTemplate);
-            // if (_blockCache.Count == 0) return Instantiate(_blockTemplate);
-            // var instance = _blockCache.Pop().gameObject;
-            // instance.SetActive(true);
-            // return instance;
+            // return Instantiate(_blockTemplate);
+            if (_blockCache.Count == 0) return Instantiate(_blockTemplate);
+            var instance = _blockCache.Pop().gameObject;
+            instance.SetActive(true);
+            return instance;
+        }
+
+        private void ReturnBlockInstance(BlockView instance)
+        {
+            // todo exception
+            if (null == instance) throw new NullReferenceException("");
+            // Destroy(instance.gameObject);
+            instance.transform.SetParent(null);
+            instance.gameObject.SetActive(false);
+            _blockCache.Push(instance);
         }
 
         public void OnPointerDown(PointerEventData eventData)

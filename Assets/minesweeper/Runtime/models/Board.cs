@@ -59,6 +59,7 @@ namespace Kilomelo.minesweeper.Runtime
 
         internal void Init(Random rand)
         {
+            CodeStopwatch.Start();
             var data = new int[_width * _height];
             for (var i = 0; i < _mineCnt; i++)
             {
@@ -83,7 +84,6 @@ namespace Kilomelo.minesweeper.Runtime
                 var areaSize = FillBlank(data, i, areaIdx, listOfBlockIdx);
                 if (areaSize > 0)
                 {
-                    Debug.Log($"Area {areaIdx} has {areaSize} blocks");
                     _3bvBlockListDic[areaIdx] = listOfBlockIdx;
                     areaIdx--;
                     listOfBlockIdx = new List<int>();
@@ -101,7 +101,10 @@ namespace Kilomelo.minesweeper.Runtime
                 _3bvBlockListDic[i] = null;
                 _3bv++;
             }
-            Debug.Log($"3bv: {_3bv}, count of _3bvBlockListDic: {_3bvBlockListDic.Count}");
+
+            var totalTime = CodeStopwatch.ElapsedMilliseconds();
+            Debug.Log($"3bv: {_3bv}");
+            Debug.Log($"board init time cost: {totalTime}");
 
             _data = data;
         }

@@ -29,11 +29,12 @@ namespace Kilomelo.minesweeper.Runtime
         private void Init()
         {
             _game = new Game(width, height, mineCnt, randSeed);
-            Debug.Log(_game.ToString());
-            _boardView.SetData(_game, _game.Board);
-            _controlView.SetData(_game);
             _game.BockChanged += _boardView.BockChanged;
             _game.GameStateChanged += _boardView.GameStateChanged;
+            _boardView.SetData(_game);
+            _controlView.SetData(_game);
+            _game.Ready2Go();
+            Debug.Log(_game.ToString());
         }
     }
 }

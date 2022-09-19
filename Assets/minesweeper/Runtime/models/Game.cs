@@ -49,16 +49,8 @@ namespace Kilomelo.minesweeper.Runtime
         internal Board Board => _board;
         internal int CompleteMinimalClick => _recorder?.OpendMinimalClickCnt ?? 0;
         internal DateTime StartTime => _startTime;
-        
-        internal Game()
-        {
-            _randomSeed = 0;
-            _rand = new Random(_randomSeed);
-            _board = new Board(8, 8, 1);
-            _recorder = new Recorder();
-            Init();
-            state = EGameState.BeforeStart;
-        }
+
+        internal Game() : this(8, 8, 1) {}
 
         internal Game(int width, int height, int mineCnt, int randomSeed = 0)
         {
@@ -66,8 +58,7 @@ namespace Kilomelo.minesweeper.Runtime
             _rand = new Random(_randomSeed);
             _board = new Board(width, height, mineCnt);
             _recorder = new Recorder();
-            Init();
-            state = EGameState.BeforeStart;
+            _state = EGameState.NotInitialized;
         }
 
         private void Init()
@@ -75,6 +66,12 @@ namespace Kilomelo.minesweeper.Runtime
             _board.Init(_rand);
             _recorder.Init();
             GameProgressChanged?.Invoke(0, _board.ThreeBV);
+        }
+
+        internal void Ready2Go()
+        {
+            Init();
+            state = EGameState.BeforeStart;
         }
 
         internal void Restart()
