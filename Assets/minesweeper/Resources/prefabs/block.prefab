@@ -59,7 +59,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.6981132, g: 0.6981132, b: 0.6981132, a: 1}
+  m_Color: {r: 0.6981132, g: 0.6981132, b: 0.6981132, a: 0.6039216}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -131,7 +131,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _fog: {fileID: 2524591254214108903}
   _fogPushDown: {fileID: 8656868795075650541}
-  _zero: {fileID: 2524591254726413404}
   _number: {fileID: 2524591255012242019}
 --- !u!1 &2524591254726413406
 GameObject:

@@ -9,6 +9,25 @@ namespace Kilomelo.minesweeper.Runtime
     [RequireComponent(typeof(RectTransform))]
     public class BoardView : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerMoveHandler, IPointerExitHandler
     {
+        private enum EBoardState : byte
+        {
+            Invalid = 0,
+            Valid = 1,
+            DataReady = 2,
+            RefreshBlocks = 3,
+            WaitFirstClick = 4,
+            ResetBlocksByMirrorState = 5,
+            Clean = 6,
+        }
+        [Flags]
+        private enum EMirrorOption : byte
+        {
+            None = 0,
+            Horizontal = 1,
+            Vertical = 2,
+            Both = 3,
+        }
+        
         [SerializeField] private Color[] _numberColor;
         [SerializeField] private GameObject _blockTemplate;
         [SerializeField] private GridLayoutGroup _blockLayout;
@@ -21,11 +40,13 @@ namespace Kilomelo.minesweeper.Runtime
         private Game _game;
         private Board _board;
         private int _lastPressedBlockIdx = -1;
-        private bool _valid;
 
         private int _lastHeight = 0;
         private int _lastWidth = 0;
 
+        private EMirrorOption _mirror = EMirrorOption.None;
+        private EBoardState _state = EBoardState.Invalid;
+        
         private void Awake()
         {
             if (null == _blockTemplate || null == _scrollRect || null == _blockLayout || null == _numberColor)
@@ -33,16 +54,32 @@ namespace Kilomelo.minesweeper.Runtime
                 // todo exception
                 throw new Exception("");
             }
-            // // 只允许正方形格子
-            // if (Math.Abs(_blockLayout.cellSize.x - _blockLayout.cellSize.y) > 0.01f) throw new Exception();
-            // _blockSize = _blockLayout.cellSize.x;
-            _valid = true;
+            _state = EBoardState.Valid;
+
+            // BlockIdxMirrorTransform_UniTest();
+        }
+
+        private void Update()
+        {
+            if (EBoardState.ResetBlocksByMirrorState == _state)
+            {
+                Debug.Log($"Set board view, _mirror: {_mirror}");
+                for (var i = 0; i < _blocks.Length; i++)
+                {
+                    var dataIdx = BlockIdxMirrorTransform(i, _mirror, _board.Width, _board.Height);
+                    var blockType = _board.GetBlock(dataIdx);
+                    // Debug.Log($"view idx: {i}, data idx: {dataIdx}, blockType: {blockType}");
+                    _blocks[i].SetBlockType(blockType, this);
+                }
+
+                _state = EBoardState.Clean;
+            }
         }
 
         private void CheckValid()
         {
             // todo exception
-            if (!_valid) throw new Exception("");
+            if (EBoardState.Invalid == _state) throw new Exception("");
         }
 
         internal Color NumberColor(int num)
@@ -64,6 +101,8 @@ namespace Kilomelo.minesweeper.Runtime
                 }
                 _blocks = null;
             }
+
+            _state = EBoardState.DataReady;
         }
 
         internal void SetData(Game game)
@@ -74,16 +113,21 @@ namespace Kilomelo.minesweeper.Runtime
             _board = _game.Board ?? throw new NullReferenceException("");
             _blockLayout.cellSize = Vector2.one * _scrollRect.viewport.rect.height / _board.Height;
             _blockSize = _blockLayout.cellSize.x;
+
+            _state = EBoardState.DataReady;
         }
 
-        internal void BockChanged(int changedBlockIdx)
+        internal void BlockChanged(int changedBlockIdx)
         {
+            Debug.Log($"BoardView.BlockChanged({changedBlockIdx})");
+            CheckValid();
             // 如果是单个地块
             if (changedBlockIdx >= 0)
             {
                 // todo exception
                 if (changedBlockIdx > _blocks.Length - 1) throw new ArgumentOutOfRangeException("");
-                _blocks[changedBlockIdx].Open();
+                var viewIdx = BlockIdxMirrorTransform(changedBlockIdx, _mirror, _board.Width, _board.Height);
+                _blocks[viewIdx].Open();
             }
             // 如果是区域
             else
@@ -100,7 +144,8 @@ namespace Kilomelo.minesweeper.Runtime
                     {
                         // todo exception
                         if (0 > blockIdx || blockIdx > _blocks.Length - 1) throw new ArgumentOutOfRangeException("");
-                        _blocks[blockIdx].Open();
+                        var viewIdx = BlockIdxMirrorTransform(blockIdx, _mirror, _board.Width, _board.Height);
+                        _blocks[viewIdx].Open();
                     }
                 }
             }
@@ -112,9 +157,9 @@ namespace Kilomelo.minesweeper.Runtime
             if (Game.EGameState.BeforeStart == gameState)
             {
                 CodeStopwatch.Start();
+                _state = EBoardState.RefreshBlocks;
                 if (_lastHeight != _board.Height || _lastWidth != _board.Width)
                 {
-                    
                     Clear();
                     InitBlocks();
                     _lastWidth = _board.Width;
@@ -129,6 +174,7 @@ namespace Kilomelo.minesweeper.Runtime
                         blockView.SetData(_game, i, blockType, this);
                     }
                 }
+                _state = EBoardState.WaitFirstClick;
                 _scrollRect.normalizedPosition = new Vector2(0f, 1f);
                 var time = CodeStopwatch.ElapsedMilliseconds();
                 Debug.Log($"BoardView init time cost: {time}");
@@ -138,7 +184,6 @@ namespace Kilomelo.minesweeper.Runtime
             {
                 foreach (var block in _blocks)
                 {
-                    
                     block.Open();
                 }
             }
@@ -185,8 +230,16 @@ namespace Kilomelo.minesweeper.Runtime
             _blockCache.Push(instance);
         }
 
+        internal void Dig(int blockIdx)
+        {
+            var dataIdx = BlockIdxMirrorTransform(blockIdx, _mirror, _board.Width, _board.Height);
+            Debug.Log($"BoardView.Dig({blockIdx}), dataIdx: {dataIdx}");
+            _game.Dig(dataIdx);
+        }
+
         public void OnPointerDown(PointerEventData eventData)
         {
+            CheckValid();
             // Debug.Log($"BoardView.OnPointerDown, pos: {eventData.position}, scrollPos: {_scrollRect.normalizedPosition}");
             if (EventData2BlockIdx(eventData, out var blockIdx))
             {
@@ -197,14 +250,53 @@ namespace Kilomelo.minesweeper.Runtime
 
         public void OnPointerUp(PointerEventData eventData)
         {
+            CheckValid();
             if (_lastPressedBlockIdx < 0) return;
             // Debug.Log($"BoardView.OnPointerUp, pos: {eventData.position}");
             if (EventData2BlockIdx(eventData, out var blockIdx))
             {
                 if (_lastPressedBlockIdx == blockIdx)
                 {
+                    if (EBoardState.WaitFirstClick == _state)
+                    {
+                        var succeed = true;
+                        var mirroredBlockidx = blockIdx;
+                        var maxTryCnt = 10;
+                        var tryCnt = 0;
+                        while (true)
+                        {
+                            // 检测点击地块是否是雷，如是则尝试镜像
+                            while (_game.Board.GetBlock(mirroredBlockidx) > 0)
+                            {
+                                if (EMirrorOption.Both == _mirror)
+                                {
+                                    // todo 切换board
+                                    succeed = false;
+                                    break;
+                                }
+                                _mirror = (EMirrorOption) (int) _mirror + 1;
+                                mirroredBlockidx = BlockIdxMirrorTransform(blockIdx, _mirror, _board.Width, _board.Height);
+                            }
+                            // loop
+                            if (succeed) break;
+                            
+                            break;
+                            tryCnt++;
+                            if (tryCnt > maxTryCnt) break;
+                        }
+
+                        // _state = succeed ? EBoardState.ResetBlocksByMirrorState : EBoardState.Clean;
+                        _state = EBoardState.ResetBlocksByMirrorState;
+                        Debug.Log($"succeed: {succeed}, mirror: {_mirror}");
+                        if (!succeed) _mirror = EMirrorOption.None;
+                        _blocks[blockIdx].SetBlockType(_board.GetBlock(BlockIdxMirrorTransform(blockIdx, _mirror, _board.Width, _board.Height)), this);
+
+                    }
+                    
                     _blocks[blockIdx].OnPointerUp();
+#if !UNITY_EDITOR
                     Vibration.Vibrate(50);
+#endif
                     _audioSource.Play();
                 }
                 else _blocks[_lastPressedBlockIdx].OnPointerDragExit();
@@ -214,6 +306,7 @@ namespace Kilomelo.minesweeper.Runtime
 
         public void OnPointerMove(PointerEventData eventData)
         {
+            CheckValid();
             // Debug.Log($"BoardView.OnPointerMove, pos: {eventData.position}");
             if (_lastPressedBlockIdx < 0) return;
             if (eventData.dragging)
@@ -225,6 +318,7 @@ namespace Kilomelo.minesweeper.Runtime
 
         public void OnPointerExit(PointerEventData eventData)
         {
+            CheckValid();
             if (_lastPressedBlockIdx < 0) return;
             _blocks[_lastPressedBlockIdx].OnPointerDragExit();
             _lastPressedBlockIdx = -1;
@@ -262,5 +356,69 @@ namespace Kilomelo.minesweeper.Runtime
             }
             return true;
         }
+
+        private int BlockIdxMirrorTransform(int blockIdx, EMirrorOption mirror, int width, int height)
+        {
+            if (width < 1 || height < 1 || blockIdx < 0 || blockIdx >= width * height)
+            {
+                // todo exception
+                throw new ArgumentOutOfRangeException("");
+            }
+            var mirrorHorizontal = (mirror & EMirrorOption.Horizontal) != 0;
+            var mirrorVertical = (mirror & EMirrorOption.Vertical) != 0;
+            var y = blockIdx / width;
+            var x = blockIdx - y * width;
+            x = mirrorHorizontal ? width - x - 1 : x;
+            y = mirrorVertical ? height - y - 1 : y;
+            return y * width + x;
+        }
+
+        // private void BlockIdxMirrorTransform_UniTest()
+        // {
+        //     var pass = true;
+        //     var resut = BlockIdxMirrorTransform(0, EMirrorOption.Horizontal, 3, 2);
+        //     if (resut != 2)
+        //     {
+        //         pass = false;
+        //         Debug.Log("Case 0 failed.");
+        //     }
+        //     
+        //     resut = BlockIdxMirrorTransform(4, EMirrorOption.Horizontal, 4, 6);
+        //     if (resut != 7)
+        //     {
+        //         pass = false;
+        //         Debug.Log("Case 1 failed.");
+        //     }
+        //     
+        //     resut = BlockIdxMirrorTransform(3, EMirrorOption.Vertical, 4, 3);
+        //     if (resut != 11)
+        //     {
+        //         pass = false;
+        //         Debug.Log("Case 2 failed.");
+        //     }
+        //     
+        //     resut = BlockIdxMirrorTransform(4, EMirrorOption.Vertical, 3, 2);
+        //     if (resut != 1)
+        //     {
+        //         pass = false;
+        //         Debug.Log("Case 3 failed.");
+        //     }
+        //     
+        //     resut = BlockIdxMirrorTransform(0, EMirrorOption.Horizontal | EMirrorOption.Vertical, 2, 3);
+        //     if (resut != 5)
+        //     {
+        //         pass = false;
+        //         Debug.Log("Case 4 failed.");
+        //     }
+        //     
+        //     resut = BlockIdxMirrorTransform(12, EMirrorOption.Horizontal | EMirrorOption.Vertical, 5, 5);
+        //     if (resut != 12)
+        //     {
+        //         pass = false;
+        //         Debug.Log("Case 5 failed.");
+        //     }
+        //     
+        //     if (pass) Debug.Log("Pass");
+        // }
     }
 }

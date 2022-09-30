@@ -38,7 +38,7 @@ namespace Kilomelo.minesweeper.Runtime
         public int ThreeBV => _3bv;
         public int Width => _width;
         public int Height => _height;
-        public int MinCnt => _mineCnt;
+        public int MineCnt => _mineCnt;
         public int BlockCnt => _width * _height;
 
         internal int GetBlock(int idx)
@@ -72,9 +72,9 @@ namespace Kilomelo.minesweeper.Runtime
             for (var i = 0; i < data.Length; i++)
             {
                 if ((int) EBlockType.Mine == data[i]) continue;
-                var neighborBlocks = NeighberIdxList(i);
-                data[i] = neighborBlocks.Count(neighbor => neighbor >= 0 && data[neighbor] == (int) EBlockType.Mine);
+                data[i] = CountNeighberMines(i, data);
             }
+
             // 标记连续空白
             _3bvBlockListDic = new Dictionary<int, List<int>>();
             var areaIdx = -1;
@@ -96,8 +96,7 @@ namespace Kilomelo.minesweeper.Runtime
             for (var i = 0; i < data.Length; i++)
             {
                 if ((int) EBlockType.Mine == data[i] || data[i] < 0) continue;
-                var neighborBlocks = NeighberIdxList(i);
-                if (neighborBlocks.Any(neighbor => neighbor  >= 0 && data[neighbor] < 0)) continue;
+                if (AnyNeighberBlank(i, data)) continue;
                 _3bvBlockListDic[i] = null;
                 _3bv++;
             }
@@ -173,18 +172,53 @@ namespace Kilomelo.minesweeper.Runtime
         /// </summary>
         /// <param name="idx"></param>
         /// <returns></returns>
-        private List<int> NeighberIdxList(int idx)
+        private int CountNeighberMines(int idx, int[] data)
         {
-            _cacheList8.Clear();
-            _cacheList8.Add(UpIdx(idx));
-            _cacheList8.Add(DownIdx(idx));
-            _cacheList8.Add(LeftIdx(idx));
-            _cacheList8.Add(RightIdx(idx));
-            _cacheList8.Add(LeftUpIdx(idx));
-            _cacheList8.Add(RightUpIdx(idx));
-            _cacheList8.Add(LeftDownIdx(idx));
-            _cacheList8.Add(RightDownIdx(idx));
-            return _cacheList8;
+            // todo exception
+            if (null == data) throw new NullReferenceException("");
+            if (idx < 0 || idx > data.Length - 1) throw new ArgumentOutOfRangeException("");
+            var mineCnt = 0;
+            var neighber = UpIdx(idx);
+            if (neighber >= 0 && (int) EBlockType.Mine == data[neighber]) mineCnt++;
+            neighber = DownIdx(idx);
+            if (neighber >= 0 && (int) EBlockType.Mine == data[neighber]) mineCnt++;
+            neighber = LeftIdx(idx);
+            if (neighber >= 0 && (int) EBlockType.Mine == data[neighber]) mineCnt++;
+            neighber = RightIdx(idx);
+            if (neighber >= 0 && (int) EBlockType.Mine == data[neighber]) mineCnt++;
+            neighber = LeftUpIdx(idx);
+            if (neighber >= 0 && (int) EBlockType.Mine == data[neighber]) mineCnt++;
+            neighber = RightUpIdx(idx);
+            if (neighber >= 0 && (int) EBlockType.Mine == data[neighber]) mineCnt++;
+            neighber = LeftDownIdx(idx);
+            if (neighber >= 0 && (int) EBlockType.Mine == data[neighber]) mineCnt++;
+            neighber = RightDownIdx(idx);
+            if (neighber >= 0 && (int) EBlockType.Mine == data[neighber]) mineCnt++;
+            return mineCnt;
+        }
+
+        private bool AnyNeighberBlank(int idx, int[] data)
+        {
+            // todo exception
+            if (null == data) throw new NullReferenceException("");
+            if (idx < 0 || idx > data.Length - 1) throw new ArgumentOutOfRangeException("");
+            var neighber = UpIdx(idx);
+            if (neighber >= 0 && 0 > data[neighber]) return true;
+            neighber = DownIdx(idx);
+            if (neighber >= 0 && 0 > data[neighber]) return true;
+            neighber = LeftIdx(idx);
+            if (neighber >= 0 && 0 > data[neighber]) return true;
+            neighber = RightIdx(idx);
+            if (neighber >= 0 && 0 > data[neighber]) return true;
+            neighber = LeftUpIdx(idx);
+            if (neighber >= 0 && 0 > data[neighber]) return true;
+            neighber = RightUpIdx(idx);
+            if (neighber >= 0 && 0 > data[neighber]) return true;
+            neighber = LeftDownIdx(idx);
+            if (neighber >= 0 && 0 > data[neighber]) return true;
+            neighber = RightDownIdx(idx);
+            if (neighber >= 0 && 0 > data[neighber]) return true;
+            return false;
         }
 
         /// <summary>

@@ -66,6 +66,7 @@ namespace Kilomelo.minesweeper.Runtime
             _board.Init(_rand);
             _recorder.Init();
             GameProgressChanged?.Invoke(0, _board.ThreeBV);
+            Debug.Log(this);
         }
 
         internal void Ready2Go()
@@ -98,16 +99,18 @@ namespace Kilomelo.minesweeper.Runtime
                     // 记录
                     if (_board.IsMinimalBlock(changedBlockIdx))
                     {
+                        Debug.Log($"{changedBlockIdx} is minimal block");
                         _recorder.SetOpenedMinimal(changedBlockIdx);
                     }
                     else
                     {
+                        Debug.Log($"{changedBlockIdx} is NOT minimal block");
                         _recorder.SetOpened(changedBlockIdx);
                     }
                     GameProgressChanged?.Invoke(_recorder.OpendMinimalClickCnt, _board.ThreeBV);
                     if (_recorder.OpendMinimalClickCnt == _board.ThreeBV)
                     {
-                        Debug.Log("Win");
+                        Debug.Log($"Win, 3bv: {_board.ThreeBV}");
                         state = EGameState.Win;
                     }
                     // 更新view

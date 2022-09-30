@@ -7,15 +7,15 @@ namespace Kilomelo.minesweeper.Runtime
 {
     public class BlockView : MonoBehaviour
     {
-        private enum EBlockViewState
+        private enum EBlockViewState : byte
         {
             Fog,
             Pressed,
             Open
         }
+
         [SerializeField] private Image _fog;
         [SerializeField] private Image _fogPushDown;
-        [SerializeField] private Image _zero;
         [SerializeField] private TextMeshProUGUI _number;
 
         private EBlockViewState _state = EBlockViewState.Fog;
@@ -47,12 +47,22 @@ namespace Kilomelo.minesweeper.Runtime
         private Action<int> _digEvent;
         internal void SetData(Game game, int blockIdx, int blockType, BoardView boardView)
         {
+            
+            _digEvent = boardView.Dig;
+            _idx = blockIdx;
+            _state = EBlockViewState.Fog;
+            _fog.enabled = true;
+            _fogPushDown.enabled = false;
+        }
+
+        internal void SetBlockType(int blockType, BoardView boardView)
+        {
             // blank 或 雷
             if (9 == blockType)
             {
                 _number.text = "0";
                 _number.color = boardView.NumberColor(0);
-
+            
             }
             else if (0 > blockType)
             {
@@ -63,11 +73,6 @@ namespace Kilomelo.minesweeper.Runtime
                 _number.text = blockType.ToString();
                 _number.color = boardView.NumberColor(blockType);
             }
-            _digEvent = game.Dig;
-            _idx = blockIdx;
-            _state = EBlockViewState.Fog;
-            _fog.enabled = true;
-            _fogPushDown.enabled = false;
         }
         
         internal void OnPointerDown()
