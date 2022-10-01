@@ -32,14 +32,18 @@ namespace Kilomelo.minesweeper.Runtime
         /// <summary>
         /// 同一空白连通区域地块列表缓存
         /// key: area idx or block idx, value: list of blockIdx or null(when single block)
+        /// todo 优化复用
         /// </summary>
         private Dictionary<int, List<int>> _3bvBlockListDic;
+        private bool _used = false;
+        
 
         public int ThreeBV => _3bv;
         public int Width => _width;
         public int Height => _height;
         public int MineCnt => _mineCnt;
         public int BlockCnt => _width * _height;
+        public bool Used => _used;
 
         internal int GetBlock(int idx)
         {
@@ -55,33 +59,32 @@ namespace Kilomelo.minesweeper.Runtime
             _width = width;
             _height = height;
             _mineCnt = mineCnt;
+            _data = new int[_width * _height];
+            for (var i = 0; i < _mineCnt; i++)
+            {
+                _data[i] = (int)EBlockType.Mine;
+            }
         }
 
         internal void Init(Random rand)
         {
             CodeStopwatch.Start();
-            var data = new int[_width * _height];
-            for (var i = 0; i < _mineCnt; i++)
-            {
-                data[i] = (int)EBlockType.Mine;
-            }
-
-            rand.Shuffle(data);
-            
+            _used = false;
+            rand.Shuffle(_data);
             // 标记周围地雷数量
-            for (var i = 0; i < data.Length; i++)
+            for (var i = 0; i < _data.Length; i++)
             {
-                if ((int) EBlockType.Mine == data[i]) continue;
-                data[i] = CountNeighberMines(i, data);
+                if ((int) EBlockType.Mine == _data[i]) continue;
+                _data[i] = CountNeighberMines(i, _data);
             }
 
             // 标记连续空白
             _3bvBlockListDic = new Dictionary<int, List<int>>();
             var areaIdx = -1;
             List<int> listOfBlockIdx = new List<int>();
-            for (var i = 0; i < data.Length; i++)
+            for (var i = 0; i < _data.Length; i++)
             {
-                var areaSize = FillBlank(data, i, areaIdx, listOfBlockIdx);
+                var areaSize = FillBlank(_data, i, areaIdx, listOfBlockIdx);
                 if (areaSize > 0)
                 {
                     _3bvBlockListDic[areaIdx] = listOfBlockIdx;
@@ -93,20 +96,21 @@ namespace Kilomelo.minesweeper.Runtime
             }
             // 统计3bv
             _3bv = -areaIdx - 1;
-            for (var i = 0; i < data.Length; i++)
+            for (var i = 0; i < _data.Length; i++)
             {
-                if ((int) EBlockType.Mine == data[i] || data[i] < 0) continue;
-                if (AnyNeighberBlank(i, data)) continue;
+                if ((int) EBlockType.Mine == _data[i] || _data[i] < 0) continue;
+                if (AnyNeighberBlank(i, _data)) continue;
                 _3bvBlockListDic[i] = null;
                 _3bv++;
             }
 
             var totalTime = CodeStopwatch.ElapsedMilliseconds();
             Debug.Log($"3bv: {_3bv}");
-            Debug.Log($"board init time cost: {totalTime}");
-
-            _data = data;
+            // Debug.Log($"board init time cost: {totalTime}");
+            Debug.Log(this);
         }
+
+        internal void SetUsed() { _used = true; }
 
         internal List<int> GetAreaBlockList(int areaIdx)
         {

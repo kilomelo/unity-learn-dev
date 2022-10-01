@@ -29,7 +29,7 @@ namespace Kilomelo.minesweeper.Runtime
         private void Init()
         {
             _game = new Game(width, height, mineCnt, randSeed);
-            _game.BockChanged += _boardView.BlockChanged;
+            _game.BlockChanged += _boardView.BlockChanged;
             _game.GameStateChanged += _boardView.GameStateChanged;
             _boardView.SetData(_game);
             _controlView.SetData(_game);

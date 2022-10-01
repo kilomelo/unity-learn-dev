@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using Random = System.Random;
 
@@ -6,6 +7,10 @@ namespace Kilomelo.minesweeper.Runtime
 {
     internal class Game
     {
+        /// <summary>
+        /// 棋盘队列初始大小
+        /// </summary>
+        private readonly int BoardQueueInitialSize = 3;
         internal enum EGameState : byte
         {
             NotInitialized,
@@ -15,8 +20,8 @@ namespace Kilomelo.minesweeper.Runtime
             GameOver
         }
 
-        private readonly Board _board;
-        private readonly Recorder _recorder;
+        private readonly List<Board> _boards;
+        private Recorder _recorder;
         private EGameState _state = EGameState.NotInitialized;
 
         private EGameState state
@@ -32,6 +37,7 @@ namespace Kilomelo.minesweeper.Runtime
                 if (EGameState.Playing == value)
                 {
                     _startTime = DateTime.Now;
+                    CurBoard.SetUsed();
                 }
                 GameStateChanged?.Invoke(_state);
             }
@@ -43,10 +49,10 @@ namespace Kilomelo.minesweeper.Runtime
         private int _randomSeed;
         private Random _rand;
         private DateTime _startTime;
-        internal Action<int> BockChanged;
+        internal Action<int> BlockChanged;
         internal Action<EGameState> GameStateChanged;
         internal Action<int, int> GameProgressChanged;
-        internal Board Board => _board;
+        internal Board CurBoard => _boards[0];
         internal int CompleteMinimalClick => _recorder?.OpendMinimalClickCnt ?? 0;
         internal DateTime StartTime => _startTime;
 
@@ -56,40 +62,135 @@ namespace Kilomelo.minesweeper.Runtime
         {
             _randomSeed = randomSeed;
             _rand = new Random(_randomSeed);
-            _board = new Board(width, height, mineCnt);
+            _boards = new List<Board>(BoardQueueInitialSize);
+            for (var i = 0; i < BoardQueueInitialSize; i++)
+            {
+                var board = new Board(width, height, mineCnt);
+                _boards.Add(board);
+            }
             _recorder = new Recorder();
             _state = EGameState.NotInitialized;
         }
 
         private void Init()
         {
-            _board.Init(_rand);
+            Debug.Log("Game.Init");
+            foreach (var board in _boards)
+            {
+                board.Init(_rand);
+                // Debug.Log(board);
+            }
             _recorder.Init();
-            GameProgressChanged?.Invoke(0, _board.ThreeBV);
-            Debug.Log(this);
         }
 
         internal void Ready2Go()
         {
             Init();
             state = EGameState.BeforeStart;
+            GameProgressChanged?.Invoke(0, CurBoard.ThreeBV);
         }
 
         internal void Restart()
         {
             if (_state == EGameState.Playing || _state == EGameState.Win || _state == EGameState.GameOver)
             {
-                Init();
+                var tmp = CurBoard;
+                _boards.RemoveAt(0);
+                _boards.Add(tmp);
+                foreach (var board in _boards)
+                {
+                    if (board.Used)
+                    {
+                        board.Init(_rand);
+                    }
+                }
+                // todo 处理记录，写入数据文件
+                _recorder = new Recorder();
                 state = EGameState.BeforeStart;
+                GameProgressChanged?.Invoke(0, CurBoard.ThreeBV);
             }
+        }
+
+        /// <summary>
+        /// 确保游戏开局第一个点为open area
+        /// </summary>
+        internal void EnsureGameOpen(int openIdx, out bool horizontalSwap, out bool verticalSwap)
+        {
+            if (EGameState.BeforeStart != _state)
+            {
+                // todo exception
+                throw new InvalidOperationException("");
+            }
+            var mirroredBlockidx = openIdx;
+            // var tryCnt = 10;
+            var slowInitCnt = 0;
+            horizontalSwap = false;
+            verticalSwap = false;
+            var swapSuccess = true;
+            var i = 0;
+            while (true)
+            {
+                i++;
+                if (i > 999)
+                {
+                    Debug.Log("dead loop 1");
+                    break;
+                }
+                // 检测点击地块是否是雷，如是则尝试镜像
+                while (CurBoard.GetBlock(mirroredBlockidx) > 0)
+                {
+                    // 先尝试水平翻转，再尝试垂直翻转，最后尝试双翻转
+                    // 0 / 0 -> 1 / 0
+                    // 1 / 0 -> 0 / 1
+                    // 0 / 1 -> 1 / 1
+                    // 1 / 1 -> change board
+                    if (!horizontalSwap)
+                    {
+                        Debug.Log($"try {(verticalSwap ? '3' : '1')}");
+                        horizontalSwap = true;
+                    }
+                    else if (!verticalSwap)
+                    {
+                        Debug.Log("try 2");
+                        horizontalSwap = false;
+                        verticalSwap = true;
+                    }
+                    else
+                    {
+                        swapSuccess = false;
+                        break;
+                    }
+                    mirroredBlockidx = BlockIdxMirrorTransform(openIdx, horizontalSwap, verticalSwap, CurBoard.Width, CurBoard.Height);
+                }
+                // loop
+                if (swapSuccess) break;
+                horizontalSwap = false;
+                verticalSwap = false;
+                // 切换棋盘
+                var tmp = CurBoard;
+                _boards.RemoveAt(0);
+                _boards.Add(tmp);
+                if (CurBoard.Used)
+                {
+                    slowInitCnt++;
+                    CurBoard.Init(_rand);
+                    if (slowInitCnt > 99)
+                    {
+                        Debug.Log("dead loop");
+                        break;
+                    }
+                }
+            }
+            Debug.Log($"Slow init cnt: {slowInitCnt}");
         }
 
         internal void Dig(int blockIdx)
         {
             if (EGameState.BeforeStart != _state && EGameState.Playing != _state) return;
             if (EGameState.BeforeStart == _state) state = EGameState.Playing;
-            // Debug.Log($"Dig {blockIdx}'s block");
-            var blockValue = _board.GetBlock(blockIdx);
+            Debug.Log($"Dig {blockIdx}'s block");
+            Debug.Log(CurBoard);
+            var blockValue = CurBoard.GetBlock(blockIdx);
             if ((int)Board.EBlockType.Mine != blockValue)
             {
                 var blockOpened = _recorder.IsOpened(blockValue > 0 ? blockIdx : blockValue);
@@ -97,7 +198,7 @@ namespace Kilomelo.minesweeper.Runtime
                 if (Open(blockIdx, out var changedBlockIdx))
                 {
                     // 记录
-                    if (_board.IsMinimalBlock(changedBlockIdx))
+                    if (CurBoard.IsMinimalBlock(changedBlockIdx))
                     {
                         Debug.Log($"{changedBlockIdx} is minimal block");
                         _recorder.SetOpenedMinimal(changedBlockIdx);
@@ -107,14 +208,14 @@ namespace Kilomelo.minesweeper.Runtime
                         Debug.Log($"{changedBlockIdx} is NOT minimal block");
                         _recorder.SetOpened(changedBlockIdx);
                     }
-                    GameProgressChanged?.Invoke(_recorder.OpendMinimalClickCnt, _board.ThreeBV);
-                    if (_recorder.OpendMinimalClickCnt == _board.ThreeBV)
+                    GameProgressChanged?.Invoke(_recorder.OpendMinimalClickCnt, CurBoard.ThreeBV);
+                    if (_recorder.OpendMinimalClickCnt == CurBoard.ThreeBV)
                     {
-                        Debug.Log($"Win, 3bv: {_board.ThreeBV}");
+                        Debug.Log($"Win, 3bv: {CurBoard.ThreeBV}");
                         state = EGameState.Win;
                     }
                     // 更新view
-                    BockChanged?.Invoke(changedBlockIdx);
+                    BlockChanged?.Invoke(changedBlockIdx);
                 }
             }
             else
@@ -122,6 +223,20 @@ namespace Kilomelo.minesweeper.Runtime
                 state = EGameState.GameOver;
                 Debug.Log("Game Over");
             }
+        }
+
+        internal int BlockIdxMirrorTransform(int blockIdx, bool horizontalSwap, bool verticalSwap, int width, int height)
+        {
+            if (width < 1 || height < 1 || blockIdx < 0 || blockIdx >= width * height)
+            {
+                // todo exception
+                throw new ArgumentOutOfRangeException("");
+            }
+            var y = blockIdx / width;
+            var x = blockIdx - y * width;
+            x = horizontalSwap ? width - x - 1 : x;
+            y = verticalSwap ? height - y - 1 : y;
+            return y * width + x;
         }
         
         /// <summary>
@@ -135,13 +250,14 @@ namespace Kilomelo.minesweeper.Runtime
         private bool Open(int blockIdx, out int changedBlockIdx)
         {
             changedBlockIdx = 0;
-            if (0 > blockIdx || _board.BlockCnt <= blockIdx)
+            Debug.Log($"Open blockIdx: {blockIdx}");
+            if (0 > blockIdx || CurBoard.BlockCnt <= blockIdx)
             {
                 Debug.LogError("todo err");
                 return false;
             }
 
-            var blockValue = _board.GetBlock(blockIdx);
+            var blockValue = CurBoard.GetBlock(blockIdx);
             if (blockValue == (int) Board.EBlockType.Mine)
             {
                 Debug.LogError($"Can't open mine block at {blockIdx}");
@@ -162,7 +278,7 @@ namespace Kilomelo.minesweeper.Runtime
         
         public override string ToString()
         {
-            return _board?.ToString() ?? "Empty Game";
+            return CurBoard?.ToString() ?? "Empty Game";
         }
     }
 }

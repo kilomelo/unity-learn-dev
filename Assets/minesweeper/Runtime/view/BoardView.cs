@@ -38,13 +38,29 @@ namespace Kilomelo.minesweeper.Runtime
         private BlockView[] _blocks;
         private Stack<BlockView> _blockCache = new Stack<BlockView>();
         private Game _game;
-        private Board _board;
         private int _lastPressedBlockIdx = -1;
 
         private int _lastHeight = 0;
         private int _lastWidth = 0;
-
-        private EMirrorOption _mirror = EMirrorOption.None;
+        // private bool _horizontalSwap = false;
+        private bool _horizontalSwap
+        {
+            get { return __horizontalSwap; }
+            set {
+                Debug.Log($"Set horizontalSwap to {value}");
+                __horizontalSwap = value;
+            }
+        }
+        private bool __horizontalSwap = false;
+        private bool _verticalSwap
+        {
+            get { return __verticalSwap; }
+            set {
+                Debug.Log($"Set verticalSwap to {value}");
+                __verticalSwap = value;
+            }
+        }
+        private bool __verticalSwap = false;
         private EBoardState _state = EBoardState.Invalid;
         
         private void Awake()
@@ -56,18 +72,18 @@ namespace Kilomelo.minesweeper.Runtime
             }
             _state = EBoardState.Valid;
 
-            // BlockIdxMirrorTransform_UniTest();
+            // _game.BlockIdxMirrorTransform_UniTest();
         }
 
         private void Update()
         {
             if (EBoardState.ResetBlocksByMirrorState == _state)
             {
-                Debug.Log($"Set board view, _mirror: {_mirror}");
+                Debug.Log($"Set board view, horizontalSwap: {_horizontalSwap}, verticalSwap: {_verticalSwap}");
                 for (var i = 0; i < _blocks.Length; i++)
                 {
-                    var dataIdx = BlockIdxMirrorTransform(i, _mirror, _board.Width, _board.Height);
-                    var blockType = _board.GetBlock(dataIdx);
+                    var dataIdx = _game.BlockIdxMirrorTransform(i, _horizontalSwap, _verticalSwap, _game.CurBoard.Width, _game.CurBoard.Height);
+                    var blockType = _game.CurBoard.GetBlock(dataIdx);
                     // Debug.Log($"view idx: {i}, data idx: {dataIdx}, blockType: {blockType}");
                     _blocks[i].SetBlockType(blockType, this);
                 }
@@ -110,8 +126,8 @@ namespace Kilomelo.minesweeper.Runtime
             CheckValid();
             // todo exception
             _game = game ?? throw new NullReferenceException("");
-            _board = _game.Board ?? throw new NullReferenceException("");
-            _blockLayout.cellSize = Vector2.one * _scrollRect.viewport.rect.height / _board.Height;
+            if (null == _game.CurBoard) throw new NullReferenceException("");
+            _blockLayout.cellSize = Vector2.one * _scrollRect.viewport.rect.height / _game.CurBoard.Height;
             _blockSize = _blockLayout.cellSize.x;
 
             _state = EBoardState.DataReady;
@@ -126,14 +142,14 @@ namespace Kilomelo.minesweeper.Runtime
             {
                 // todo exception
                 if (changedBlockIdx > _blocks.Length - 1) throw new ArgumentOutOfRangeException("");
-                var viewIdx = BlockIdxMirrorTransform(changedBlockIdx, _mirror, _board.Width, _board.Height);
+                var viewIdx = _game.BlockIdxMirrorTransform(changedBlockIdx, _horizontalSwap, _verticalSwap, _game.CurBoard.Width, _game.CurBoard.Height);
                 _blocks[viewIdx].Open();
             }
             // 如果是区域
             else
             {
                 // 根据区域信息刷新block
-                var blockList = _board.GetAreaBlockList(changedBlockIdx);
+                var blockList = _game.CurBoard.GetAreaBlockList(changedBlockIdx);
                 if (null == blockList)
                 {
                     Debug.LogError($"Refresh area {changedBlockIdx} failed, can't find area");
@@ -144,7 +160,7 @@ namespace Kilomelo.minesweeper.Runtime
                     {
                         // todo exception
                         if (0 > blockIdx || blockIdx > _blocks.Length - 1) throw new ArgumentOutOfRangeException("");
-                        var viewIdx = BlockIdxMirrorTransform(blockIdx, _mirror, _board.Width, _board.Height);
+                        var viewIdx = _game.BlockIdxMirrorTransform(blockIdx, _horizontalSwap, _verticalSwap, _game.CurBoard.Width, _game.CurBoard.Height);
                         _blocks[viewIdx].Open();
                     }
                 }
@@ -153,28 +169,31 @@ namespace Kilomelo.minesweeper.Runtime
 
         internal void GameStateChanged(Game.EGameState gameState)
         {
+            Debug.Log("BoardView.GameStateChanged");
             CheckValid();
             if (Game.EGameState.BeforeStart == gameState)
             {
                 CodeStopwatch.Start();
                 _state = EBoardState.RefreshBlocks;
-                if (_lastHeight != _board.Height || _lastWidth != _board.Width)
+                if (_lastHeight != _game.CurBoard.Height || _lastWidth != _game.CurBoard.Width)
                 {
                     Clear();
                     InitBlocks();
-                    _lastWidth = _board.Width;
-                    _lastHeight = _board.Height;
+                    _lastWidth = _game.CurBoard.Width;
+                    _lastHeight = _game.CurBoard.Height;
                 }
                 else
                 {
-                    for (var i = 0; i < _board.BlockCnt; i++)
+                    for (var i = 0; i < _game.CurBoard.BlockCnt; i++)
                     {
                         var blockView = _blocks[i];
-                        var blockType = _board.GetBlock(i);
+                        var blockType = _game.CurBoard.GetBlock(i);
                         blockView.SetData(_game, i, blockType, this);
                     }
                 }
                 _state = EBoardState.WaitFirstClick;
+                _horizontalSwap = false;
+                _verticalSwap = false;
                 _scrollRect.normalizedPosition = new Vector2(0f, 1f);
                 var time = CodeStopwatch.ElapsedMilliseconds();
                 Debug.Log($"BoardView init time cost: {time}");
@@ -193,16 +212,16 @@ namespace Kilomelo.minesweeper.Runtime
         {
             CheckValid();
             _blockLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            _blockLayout.constraintCount = _board.Width;
-            _blocks = new BlockView[_board.BlockCnt];
-            for (var i = 0; i < _board.BlockCnt; i++)
+            _blockLayout.constraintCount = _game.CurBoard.Width;
+            _blocks = new BlockView[_game.CurBoard.BlockCnt];
+            for (var i = 0; i < _game.CurBoard.BlockCnt; i++)
             {
                 var blockInstance = GetBlockInstance();
                 blockInstance.transform.SetParent(_blockLayout.transform);
                 var blockView = blockInstance.GetComponent<BlockView>();
                 // todo exception
                 if (null == blockView) throw new MissingComponentException("");
-                var blockType = _board.GetBlock(i);
+                var blockType = _game.CurBoard.GetBlock(i);
                 
                 blockView.SetData(_game, i, blockType, this);
                 _blocks[i] = blockView;
@@ -232,8 +251,8 @@ namespace Kilomelo.minesweeper.Runtime
 
         internal void Dig(int blockIdx)
         {
-            var dataIdx = BlockIdxMirrorTransform(blockIdx, _mirror, _board.Width, _board.Height);
-            Debug.Log($"BoardView.Dig({blockIdx}), dataIdx: {dataIdx}");
+            var dataIdx = _game.BlockIdxMirrorTransform(blockIdx, _horizontalSwap, _verticalSwap, _game.CurBoard.Width, _game.CurBoard.Height);
+            Debug.Log($"BoardView.Dig({blockIdx}), dataIdx: {dataIdx}, horizontalSwap: {_horizontalSwap}, verticalSwap: {_verticalSwap}");
             _game.Dig(dataIdx);
         }
 
@@ -259,38 +278,11 @@ namespace Kilomelo.minesweeper.Runtime
                 {
                     if (EBoardState.WaitFirstClick == _state)
                     {
-                        var succeed = true;
-                        var mirroredBlockidx = blockIdx;
-                        var maxTryCnt = 10;
-                        var tryCnt = 0;
-                        while (true)
-                        {
-                            // 检测点击地块是否是雷，如是则尝试镜像
-                            while (_game.Board.GetBlock(mirroredBlockidx) > 0)
-                            {
-                                if (EMirrorOption.Both == _mirror)
-                                {
-                                    // todo 切换board
-                                    succeed = false;
-                                    break;
-                                }
-                                _mirror = (EMirrorOption) (int) _mirror + 1;
-                                mirroredBlockidx = BlockIdxMirrorTransform(blockIdx, _mirror, _board.Width, _board.Height);
-                            }
-                            // loop
-                            if (succeed) break;
-                            
-                            break;
-                            tryCnt++;
-                            if (tryCnt > maxTryCnt) break;
-                        }
-
-                        // _state = succeed ? EBoardState.ResetBlocksByMirrorState : EBoardState.Clean;
+                        _game.EnsureGameOpen(blockIdx, out var _horizontalSwap, out var _verticalSwap);
+                        
                         _state = EBoardState.ResetBlocksByMirrorState;
-                        Debug.Log($"succeed: {succeed}, mirror: {_mirror}");
-                        if (!succeed) _mirror = EMirrorOption.None;
-                        _blocks[blockIdx].SetBlockType(_board.GetBlock(BlockIdxMirrorTransform(blockIdx, _mirror, _board.Width, _board.Height)), this);
-
+                        Debug.Log($"horizontalSwap: {_horizontalSwap}, verticalSwap: {_verticalSwap}");
+                        _blocks[blockIdx].SetBlockType(_game.CurBoard.GetBlock(_game.BlockIdxMirrorTransform(blockIdx, _horizontalSwap, _verticalSwap, _game.CurBoard.Width, _game.CurBoard.Height)), this);
                     }
                     
                     _blocks[blockIdx].OnPointerUp();
@@ -344,11 +336,11 @@ namespace Kilomelo.minesweeper.Runtime
             var xIdx = Mathf.FloorToInt(xPosInBoard / _blockSize);
             var yIdx = Mathf.FloorToInt(yPosInBoard / _blockSize);
             // Debug.Log($"xIdx: {xIdx}, yIdx: {yIdx}");
-            if (xIdx < 0 || xIdx >= _board.Width || yIdx < 0 || yIdx >= _board.Height)
+            if (xIdx < 0 || xIdx >= _game.CurBoard.Width || yIdx < 0 || yIdx >= _game.CurBoard.Height)
             {
                 return false;
             }
-            blockIdx = xIdx + yIdx * _board.Width;
+            blockIdx = xIdx + yIdx * _game.CurBoard.Width;
             if (blockIdx >= _blocks.Length)
             {
                 // todo exception
@@ -357,61 +349,45 @@ namespace Kilomelo.minesweeper.Runtime
             return true;
         }
 
-        private int BlockIdxMirrorTransform(int blockIdx, EMirrorOption mirror, int width, int height)
-        {
-            if (width < 1 || height < 1 || blockIdx < 0 || blockIdx >= width * height)
-            {
-                // todo exception
-                throw new ArgumentOutOfRangeException("");
-            }
-            var mirrorHorizontal = (mirror & EMirrorOption.Horizontal) != 0;
-            var mirrorVertical = (mirror & EMirrorOption.Vertical) != 0;
-            var y = blockIdx / width;
-            var x = blockIdx - y * width;
-            x = mirrorHorizontal ? width - x - 1 : x;
-            y = mirrorVertical ? height - y - 1 : y;
-            return y * width + x;
-        }
-
-        // private void BlockIdxMirrorTransform_UniTest()
+        // private void _game.BlockIdxMirrorTransform_UniTest()
         // {
         //     var pass = true;
-        //     var resut = BlockIdxMirrorTransform(0, EMirrorOption.Horizontal, 3, 2);
+        //     var resut = _game.BlockIdxMirrorTransform(0, EMirrorOption.Horizontal, 3, 2);
         //     if (resut != 2)
         //     {
         //         pass = false;
         //         Debug.Log("Case 0 failed.");
         //     }
         //     
-        //     resut = BlockIdxMirrorTransform(4, EMirrorOption.Horizontal, 4, 6);
+        //     resut = _game.BlockIdxMirrorTransform(4, EMirrorOption.Horizontal, 4, 6);
         //     if (resut != 7)
         //     {
         //         pass = false;
         //         Debug.Log("Case 1 failed.");
         //     }
         //     
-        //     resut = BlockIdxMirrorTransform(3, EMirrorOption.Vertical, 4, 3);
+        //     resut = _game.BlockIdxMirrorTransform(3, EMirrorOption.Vertical, 4, 3);
         //     if (resut != 11)
         //     {
         //         pass = false;
         //         Debug.Log("Case 2 failed.");
         //     }
         //     
-        //     resut = BlockIdxMirrorTransform(4, EMirrorOption.Vertical, 3, 2);
+        //     resut = _game.BlockIdxMirrorTransform(4, EMirrorOption.Vertical, 3, 2);
         //     if (resut != 1)
         //     {
         //         pass = false;
         //         Debug.Log("Case 3 failed.");
         //     }
         //     
-        //     resut = BlockIdxMirrorTransform(0, EMirrorOption.Horizontal | EMirrorOption.Vertical, 2, 3);
+        //     resut = _game.BlockIdxMirrorTransform(0, EMirrorOption.Horizontal | EMirrorOption.Vertical, 2, 3);
         //     if (resut != 5)
         //     {
         //         pass = false;
         //         Debug.Log("Case 4 failed.");
         //     }
         //     
-        //     resut = BlockIdxMirrorTransform(12, EMirrorOption.Horizontal | EMirrorOption.Vertical, 5, 5);
+        //     resut = _game.BlockIdxMirrorTransform(12, EMirrorOption.Horizontal | EMirrorOption.Vertical, 5, 5);
         //     if (resut != 12)
         //     {
         //         pass = false;
