@@ -1,6 +1,4 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,14 +8,16 @@ namespace Kilomelo.minesweeper.Runtime
     public class ControlView : MonoBehaviour
     {
         [SerializeField] private TextMeshProUGUI _gameProgressLabel;
+        [SerializeField] private Image _gameProgressImage;
         [SerializeField] private TextMeshProUGUI _timerLabel;
         [SerializeField] private Button _newGameBtn;
-        [SerializeField] private Image _win;
-        [SerializeField] private Image _gameOver;
+        [SerializeField] private GameObject _win;
+        [SerializeField] private GameObject _gameOver;
         private Game _game;
         private void Awake()
         {
-            if (null == _newGameBtn || null == _win || null == _gameOver || null == _gameProgressLabel || null == _timerLabel)
+            if (null == _newGameBtn || null == _win || null == _gameOver ||
+                null == _gameProgressLabel || null == _gameProgressImage || null == _timerLabel)
             {
                 // todo exception
                 throw new MissingComponentException("");
@@ -50,30 +50,32 @@ namespace Kilomelo.minesweeper.Runtime
         {
             if (Game.EGameState.Win == gameState)
             {
-                _win.enabled = true;
-                _gameOver.enabled = false;
+                _win.SetActive(true);
+                _gameOver.SetActive(false);
             }
             else if (Game.EGameState.GameOver == gameState)
             {
-                _win.enabled = false;
-                _gameOver.enabled = true;
+                _win.SetActive(false);
+                _gameOver.SetActive(true);
             }
             else if (Game.EGameState.BeforeStart == gameState)
             {
                 _timerLabel.text = string.Format("{0} s", 0);
-                _win.enabled = false;
-                _gameOver.enabled = false;
+                _win.SetActive(false);
+                _gameOver.SetActive(false);
             }
             else
             {
-                _win.enabled = false;
-                _gameOver.enabled = false;
+                _win.SetActive(false);
+                _gameOver.SetActive(false);
             }
         }
 
         private void GameProgressChanged(int current, int threeBV)
         {
-            _gameProgressLabel.text = string.Format("{0} %", Mathf.FloorToInt(100f * current / threeBV));
+            var percentange = (float)current / threeBV;
+            _gameProgressLabel.text = string.Format("{0} %", Mathf.FloorToInt(100f * percentange));
+            _gameProgressImage.fillAmount = percentange;
         }
     }
 }
