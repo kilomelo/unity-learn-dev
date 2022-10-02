@@ -8,6 +8,7 @@ namespace Kilomelo.minesweeper.Runtime
         private Game _game;
         [SerializeField] private BoardView _boardView;
         [SerializeField] private ControlView _controlView;
+        [SerializeField] private ResultView _resultView;
         [SerializeField] private int randSeed = 0;
         [SerializeField] private int width = 8;
         [SerializeField] private int height = 8;
@@ -15,7 +16,7 @@ namespace Kilomelo.minesweeper.Runtime
 
         void Awake()
         {
-            if (null == _boardView || null == _controlView)
+            if (null == _boardView || null == _controlView || null == _resultView)
             {
                 Debug.LogError("view ref missing");
                 return;
@@ -33,6 +34,7 @@ namespace Kilomelo.minesweeper.Runtime
             _game.GameStateChanged += _boardView.GameStateChanged;
             _boardView.SetData(_game);
             _controlView.SetData(_game);
+            _resultView.SetData(_game);
             _game.Ready2Go();
             // Debug.Log(_game.ToString());
         }
