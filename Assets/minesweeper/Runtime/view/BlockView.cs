@@ -45,6 +45,7 @@ namespace Kilomelo.minesweeper.Runtime
         }
         private int _idx;
         private Action<int> _digEvent;
+
         internal void SetData(Game game, int blockIdx, int blockType, BoardView boardView)
         {
             

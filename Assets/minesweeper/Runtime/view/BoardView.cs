@@ -42,25 +42,8 @@ namespace Kilomelo.minesweeper.Runtime
 
         private int _lastHeight = 0;
         private int _lastWidth = 0;
-        // private bool _horizontalSwap = false;
-        private bool _horizontalSwap
-        {
-            get { return __horizontalSwap; }
-            set {
-                Debug.Log($"Set horizontalSwap to {value}");
-                __horizontalSwap = value;
-            }
-        }
-        private bool __horizontalSwap = false;
-        private bool _verticalSwap
-        {
-            get { return __verticalSwap; }
-            set {
-                Debug.Log($"Set verticalSwap to {value}");
-                __verticalSwap = value;
-            }
-        }
-        private bool __verticalSwap = false;
+        private bool _horizontalSwap = false;
+        private bool _verticalSwap = false;
         private EBoardState _state = EBoardState.Invalid;
         
         private void Awake()
@@ -79,7 +62,7 @@ namespace Kilomelo.minesweeper.Runtime
         {
             if (EBoardState.ResetBlocksByMirrorState == _state)
             {
-                Debug.Log($"Set board view, horizontalSwap: {_horizontalSwap}, verticalSwap: {_verticalSwap}");
+                // Debug.Log($"Set board view, horizontalSwap: {_horizontalSwap}, verticalSwap: {_verticalSwap}");
                 for (var i = 0; i < _blocks.Length; i++)
                 {
                     var dataIdx = _game.BlockIdxMirrorTransform(i, _horizontalSwap, _verticalSwap, _game.CurBoard.Width, _game.CurBoard.Height);
@@ -135,7 +118,7 @@ namespace Kilomelo.minesweeper.Runtime
 
         internal void BlockChanged(int changedBlockIdx)
         {
-            Debug.Log($"BoardView.BlockChanged({changedBlockIdx})");
+            // Debug.Log($"BoardView.BlockChanged({changedBlockIdx})");
             CheckValid();
             // 如果是单个地块
             if (changedBlockIdx >= 0)
@@ -169,7 +152,7 @@ namespace Kilomelo.minesweeper.Runtime
 
         internal void GameStateChanged(Game.EGameState gameState)
         {
-            Debug.Log("BoardView.GameStateChanged");
+            // Debug.Log("BoardView.GameStateChanged");
             CheckValid();
             if (Game.EGameState.BeforeStart == gameState)
             {
@@ -196,7 +179,7 @@ namespace Kilomelo.minesweeper.Runtime
                 _verticalSwap = false;
                 _scrollRect.normalizedPosition = new Vector2(0f, 1f);
                 var time = CodeStopwatch.ElapsedMilliseconds();
-                Debug.Log($"BoardView init time cost: {time}");
+                // Debug.Log($"BoardView init time cost: {time}");
             }
 
             if (Game.EGameState.GameOver == gameState)
@@ -222,7 +205,6 @@ namespace Kilomelo.minesweeper.Runtime
                 // todo exception
                 if (null == blockView) throw new MissingComponentException("");
                 var blockType = _game.CurBoard.GetBlock(i);
-                
                 blockView.SetData(_game, i, blockType, this);
                 _blocks[i] = blockView;
             }
@@ -252,7 +234,7 @@ namespace Kilomelo.minesweeper.Runtime
         internal void Dig(int blockIdx)
         {
             var dataIdx = _game.BlockIdxMirrorTransform(blockIdx, _horizontalSwap, _verticalSwap, _game.CurBoard.Width, _game.CurBoard.Height);
-            Debug.Log($"BoardView.Dig({blockIdx}), dataIdx: {dataIdx}, horizontalSwap: {_horizontalSwap}, verticalSwap: {_verticalSwap}");
+            // Debug.Log($"BoardView.Dig({blockIdx}), dataIdx: {dataIdx}, horizontalSwap: {_horizontalSwap}, verticalSwap: {_verticalSwap}, [{this.GetHashCode()}]");
             _game.Dig(dataIdx);
         }
 
@@ -278,10 +260,10 @@ namespace Kilomelo.minesweeper.Runtime
                 {
                     if (EBoardState.WaitFirstClick == _state)
                     {
-                        _game.EnsureGameOpen(blockIdx, out var _horizontalSwap, out var _verticalSwap);
+                        _game.EnsureGameOpen(blockIdx, out _horizontalSwap, out _verticalSwap);
                         
                         _state = EBoardState.ResetBlocksByMirrorState;
-                        Debug.Log($"horizontalSwap: {_horizontalSwap}, verticalSwap: {_verticalSwap}");
+                        // Debug.Log($"horizontalSwap: {_horizontalSwap}, verticalSwap: {_verticalSwap}, [{this.GetHashCode()}]");
                         _blocks[blockIdx].SetBlockType(_game.CurBoard.GetBlock(_game.BlockIdxMirrorTransform(blockIdx, _horizontalSwap, _verticalSwap, _game.CurBoard.Width, _game.CurBoard.Height)), this);
                     }
                     

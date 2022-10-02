@@ -126,16 +126,16 @@ namespace Kilomelo.minesweeper.Runtime
             var slowInitCnt = 0;
             horizontalSwap = false;
             verticalSwap = false;
-            var swapSuccess = true;
             var i = 0;
             while (true)
             {
                 i++;
-                if (i > 999)
+                if (i > 99)
                 {
                     Debug.Log("dead loop 1");
                     break;
                 }
+                var swapSuccess = true;
                 // 检测点击地块是否是雷，如是则尝试镜像
                 while (CurBoard.GetBlock(mirroredBlockidx) > 0)
                 {
@@ -146,12 +146,12 @@ namespace Kilomelo.minesweeper.Runtime
                     // 1 / 1 -> change board
                     if (!horizontalSwap)
                     {
-                        Debug.Log($"try {(verticalSwap ? '3' : '1')}");
+                        // Debug.Log($"try {(verticalSwap ? '3' : '1')}");
                         horizontalSwap = true;
                     }
                     else if (!verticalSwap)
                     {
-                        Debug.Log("try 2");
+                        // Debug.Log("try 2");
                         horizontalSwap = false;
                         verticalSwap = true;
                     }
@@ -162,18 +162,24 @@ namespace Kilomelo.minesweeper.Runtime
                     }
                     mirroredBlockidx = BlockIdxMirrorTransform(openIdx, horizontalSwap, verticalSwap, CurBoard.Width, CurBoard.Height);
                 }
+                // Debug.Log($"End of inner loop, swapSuccess: {swapSuccess}");
                 // loop
                 if (swapSuccess) break;
                 horizontalSwap = false;
                 verticalSwap = false;
+                mirroredBlockidx = openIdx;
                 // 切换棋盘
+                // Debug.Log("Change board");
                 var tmp = CurBoard;
+                tmp.SetUsed();
                 _boards.RemoveAt(0);
                 _boards.Add(tmp);
                 if (CurBoard.Used)
                 {
+                    // Debug.Log("Slow init");
                     slowInitCnt++;
                     CurBoard.Init(_rand);
+                    // Debug.Log(CurBoard);
                     if (slowInitCnt > 99)
                     {
                         Debug.Log("dead loop");
@@ -188,8 +194,8 @@ namespace Kilomelo.minesweeper.Runtime
         {
             if (EGameState.BeforeStart != _state && EGameState.Playing != _state) return;
             if (EGameState.BeforeStart == _state) state = EGameState.Playing;
-            Debug.Log($"Dig {blockIdx}'s block");
-            Debug.Log(CurBoard);
+            // Debug.Log($"Dig {blockIdx}'s block");
+            // Debug.Log(CurBoard);
             var blockValue = CurBoard.GetBlock(blockIdx);
             if ((int)Board.EBlockType.Mine != blockValue)
             {
@@ -200,12 +206,12 @@ namespace Kilomelo.minesweeper.Runtime
                     // 记录
                     if (CurBoard.IsMinimalBlock(changedBlockIdx))
                     {
-                        Debug.Log($"{changedBlockIdx} is minimal block");
+                        // Debug.Log($"{changedBlockIdx} is minimal block");
                         _recorder.SetOpenedMinimal(changedBlockIdx);
                     }
                     else
                     {
-                        Debug.Log($"{changedBlockIdx} is NOT minimal block");
+                        // Debug.Log($"{changedBlockIdx} is NOT minimal block");
                         _recorder.SetOpened(changedBlockIdx);
                     }
                     GameProgressChanged?.Invoke(_recorder.OpendMinimalClickCnt, CurBoard.ThreeBV);
@@ -250,7 +256,7 @@ namespace Kilomelo.minesweeper.Runtime
         private bool Open(int blockIdx, out int changedBlockIdx)
         {
             changedBlockIdx = 0;
-            Debug.Log($"Open blockIdx: {blockIdx}");
+            // Debug.Log($"Open blockIdx: {blockIdx}");
             if (0 > blockIdx || CurBoard.BlockCnt <= blockIdx)
             {
                 Debug.LogError("todo err");

@@ -1229,9 +1229,9 @@ MonoBehaviour:
   _boardView: {fileID: 380308860}
   _controlView: {fileID: 476997587}
   randSeed: 0
-  width: 8
-  height: 8
-  mineCnt: 10
+  width: 16
+  height: 16
+  mineCnt: 40
 --- !u!4 &1217861334
 Transform:
   m_ObjectHideFlags: 0
