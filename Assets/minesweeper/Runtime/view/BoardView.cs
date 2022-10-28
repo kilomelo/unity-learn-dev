@@ -19,14 +19,6 @@ namespace Kilomelo.minesweeper.Runtime
             ResetBlocksByMirrorState = 5,
             Clean = 6,
         }
-        [Flags]
-        private enum EMirrorOption : byte
-        {
-            None = 0,
-            Horizontal = 1,
-            Vertical = 2,
-            Both = 3,
-        }
         
         [SerializeField] private Color[] _numberColor;
         [SerializeField] private GameObject _blockTemplate;
@@ -40,8 +32,8 @@ namespace Kilomelo.minesweeper.Runtime
         private Game _game;
         private int _lastPressedBlockIdx = -1;
 
-        private int _lastHeight = 0;
-        private int _lastWidth = 0;
+        // private int _lastHeight = 0;
+        // private int _lastWidth = 0;
         private bool _horizontalSwap = false;
         private bool _verticalSwap = false;
         private EBoardState _state = EBoardState.Invalid;
@@ -112,13 +104,17 @@ namespace Kilomelo.minesweeper.Runtime
             if (null == _game.CurBoard) throw new NullReferenceException("");
             _blockLayout.cellSize = Vector2.one * _scrollRect.viewport.rect.height / _game.CurBoard.Height;
             _blockSize = _blockLayout.cellSize.x;
+            
+            _game.BlockChanged += BlockChanged;
+            _game.GameStateChanged += GameStateChanged;
+            _game.BoardSizeChanged += BoardSizeChanged;
 
             _state = EBoardState.DataReady;
         }
 
-        internal void BlockChanged(int changedBlockIdx)
+        private void BlockChanged(int changedBlockIdx)
         {
-            // Debug.Log($"BoardView.BlockChanged({changedBlockIdx})");
+            Debug.Log($"BoardView.BlockChanged({changedBlockIdx})");
             CheckValid();
             // 如果是单个地块
             if (changedBlockIdx >= 0)
@@ -150,29 +146,20 @@ namespace Kilomelo.minesweeper.Runtime
             }
         }
 
-        internal void GameStateChanged(Game.EGameState gameState)
+        private void GameStateChanged(Game.EGameState gameState)
         {
-            // Debug.Log("BoardView.GameStateChanged");
+            Debug.Log("BoardView.GameStateChanged");
             CheckValid();
             if (Game.EGameState.BeforeStart == gameState)
             {
                 CodeStopwatch.Start();
                 _state = EBoardState.RefreshBlocks;
-                if (_lastHeight != _game.CurBoard.Height || _lastWidth != _game.CurBoard.Width)
+                // Debug.Log($"_lastHeight: {_lastHeight}, _lastWidth: {_lastWidth}, _game.CurBoard.Height: {_game.CurBoard.Height}, _game.CurBoard.Width: {_game.CurBoard.Width}");
+                
+                for (var i = 0; i < _game.CurBoard.BlockCnt; i++)
                 {
-                    Clear();
-                    InitBlocks();
-                    _lastWidth = _game.CurBoard.Width;
-                    _lastHeight = _game.CurBoard.Height;
-                }
-                else
-                {
-                    for (var i = 0; i < _game.CurBoard.BlockCnt; i++)
-                    {
-                        var blockView = _blocks[i];
-                        var blockType = _game.CurBoard.GetBlock(i);
-                        blockView.SetData(_game, i, blockType, this);
-                    }
+                    var blockView = _blocks[i];
+                    blockView.SetData(i, this);
                 }
                 _state = EBoardState.WaitFirstClick;
                 _horizontalSwap = false;
@@ -191,6 +178,16 @@ namespace Kilomelo.minesweeper.Runtime
             }
         }
 
+        private void BoardSizeChanged(int width, int height)
+        {
+            Debug.Log("BoardView.BoardSizeChanged");
+            Clear();
+            InitBlocks();
+            _blockLayout.cellSize = Vector2.one * _scrollRect.viewport.rect.height / _game.CurBoard.Height;
+            _blockSize = _blockLayout.cellSize.x;
+            _scrollRect.normalizedPosition = new Vector2(0f, 1f);
+        }
+
         private void InitBlocks()
         {
             CheckValid();
@@ -204,8 +201,7 @@ namespace Kilomelo.minesweeper.Runtime
                 var blockView = blockInstance.GetComponent<BlockView>();
                 // todo exception
                 if (null == blockView) throw new MissingComponentException("");
-                var blockType = _game.CurBoard.GetBlock(i);
-                blockView.SetData(_game, i, blockType, this);
+                blockView.SetData(i, this);
                 _blocks[i] = blockView;
             }
         }
@@ -253,13 +249,14 @@ namespace Kilomelo.minesweeper.Runtime
         {
             CheckValid();
             if (_lastPressedBlockIdx < 0) return;
-            // Debug.Log($"BoardView.OnPointerUp, pos: {eventData.position}");
+            Debug.Log($"BoardView.OnPointerUp, pos: {eventData.position}");
             if (EventData2BlockIdx(eventData, out var blockIdx))
             {
                 if (_lastPressedBlockIdx == blockIdx)
                 {
                     if (EBoardState.WaitFirstClick == _state)
                     {
+                        Debug.Log($"EnsureGameOpen, blockIdx: {blockIdx}");
                         _game.EnsureGameOpen(blockIdx, out _horizontalSwap, out _verticalSwap);
                         
                         _state = EBoardState.ResetBlocksByMirrorState;

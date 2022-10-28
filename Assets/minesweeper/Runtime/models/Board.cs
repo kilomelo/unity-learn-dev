@@ -59,6 +59,7 @@ namespace Kilomelo.minesweeper.Runtime
             _width = width;
             _height = height;
             _mineCnt = mineCnt;
+            _used = true;
             _data = new int[_width * _height];
             for (var i = 0; i < _mineCnt; i++)
             {
@@ -68,6 +69,7 @@ namespace Kilomelo.minesweeper.Runtime
 
         internal void Init(Random rand)
         {
+            Debug.Log($"Board.Init, board hash: {GetHashCode()}");
             CodeStopwatch.Start();
             _used = false;
             rand.Shuffle(_data);
@@ -119,6 +121,11 @@ namespace Kilomelo.minesweeper.Runtime
 
         internal bool IsMinimalBlock(int blockIdx)
         {
+            if (null == _3bvBlockListDic)
+            {
+                Debug.Log($"null ref, board hash: {this.GetHashCode()}");
+                return false;
+            }
             return _3bvBlockListDic.ContainsKey(blockIdx);
         }
         

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using Random = System.Random;
 
@@ -10,7 +11,7 @@ namespace Kilomelo.minesweeper.Runtime
         /// <summary>
         /// 棋盘队列初始大小
         /// </summary>
-        private readonly int BoardQueueInitialSize = 3;
+        private readonly int BoardQueueInitialSize = 5;
         internal enum EGameState : byte
         {
             NotInitialized,
@@ -52,6 +53,7 @@ namespace Kilomelo.minesweeper.Runtime
         internal Action<int> BlockChanged;
         internal Action<EGameState> GameStateChanged;
         internal Action<int, int> GameProgressChanged;
+        internal Action<int, int> BoardSizeChanged;
         internal Board CurBoard => _boards[0];
         internal int CompleteMinimalClick => _recorder?.OpendMinimalClickCnt ?? 0;
         internal DateTime StartTime => _startTime;
@@ -81,6 +83,7 @@ namespace Kilomelo.minesweeper.Runtime
                 // Debug.Log(board);
             }
             _recorder.Init();
+            BoardSizeChanged?.Invoke(CurBoard.Width, CurBoard.Height);
         }
 
         internal void Ready2Go()
@@ -92,23 +95,36 @@ namespace Kilomelo.minesweeper.Runtime
 
         internal void Restart()
         {
-            if (_state == EGameState.Playing || _state == EGameState.Win || _state == EGameState.GameOver)
+            var tmp = CurBoard;
+            _boards.RemoveAt(0);
+            _boards.Add(tmp);
+            foreach (var board in _boards.Where(board => board.Used))
             {
-                var tmp = CurBoard;
-                _boards.RemoveAt(0);
-                _boards.Add(tmp);
-                foreach (var board in _boards)
-                {
-                    if (board.Used)
-                    {
-                        board.Init(_rand);
-                    }
-                }
-                // todo 处理记录，写入数据文件
-                _recorder = new Recorder();
-                state = EGameState.BeforeStart;
-                GameProgressChanged?.Invoke(0, CurBoard.ThreeBV);
+                board.Init(_rand);
             }
+            // todo 处理记录，写入数据文件
+            // _recorder = new Recorder();
+            _recorder.Init();
+            state = EGameState.BeforeStart;
+            GameProgressChanged?.Invoke(0, CurBoard.ThreeBV);
+            // Restart(CurBoard.Width, CurBoard.Height, CurBoard.MineCnt);
+        }
+
+        internal void ChangeBoardConfig(int width, int height, int mineCnt)
+        {
+            Debug.Log($"Game.ChangeBoardConfig width: {width}, height: {height}. mineCnt: {mineCnt}");
+            if (_state != EGameState.BeforeStart && _state != EGameState.Win && _state != EGameState.GameOver) return;
+            if (width == CurBoard.Width && height == CurBoard.Height && mineCnt == CurBoard.MineCnt) return;
+            Debug.Log("Regenerate boards");
+            _boards.Clear();
+            for (var i = 0; i < BoardQueueInitialSize; i++)
+            {
+                var board = new Board(width, height, mineCnt);
+                board.Init(_rand);
+                Debug.Log($"Create board instance, hash code: {board.GetHashCode()}");
+                _boards.Add(board);
+            }
+            BoardSizeChanged?.Invoke(width, height);
         }
 
         /// <summary>

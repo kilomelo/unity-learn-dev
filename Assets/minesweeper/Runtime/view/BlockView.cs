@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -46,7 +45,7 @@ namespace Kilomelo.minesweeper.Runtime
         private int _idx;
         private Action<int> _digEvent;
 
-        internal void SetData(Game game, int blockIdx, int blockType, BoardView boardView)
+        internal void SetData(int blockIdx, BoardView boardView)
         {
             
             _digEvent = boardView.Dig;

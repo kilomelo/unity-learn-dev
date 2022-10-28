@@ -46,7 +46,7 @@ namespace Kilomelo.minesweeper.Runtime
                 var timeDelta = DateTime.Now - _game.StartTime;
                 var duration = (int)(timeDelta.TotalMilliseconds * 0.001f * 10) * 0.1f;
                 _timeLabel.text = $"Time: {duration} s";
-                _3bvLabel.text = $"3BV: {_game.CompleteMinimalClick}/{_game.CurBoard.ThreeBV}";
+                _3bvLabel.text = $"3BV: {_game.CompleteMinimalClick} / {_game.CurBoard.ThreeBV}";
                 Debug.Log($"_game.CompleteMinimalClick: {_game.CompleteMinimalClick}");
                 var threeBVPerSec = (int)((float) _game.CompleteMinimalClick / timeDelta.TotalMilliseconds * 1000 * 100) * 0.01f;
                 _3bvsLabel.text = $"3BV/s: {threeBVPerSec}";
