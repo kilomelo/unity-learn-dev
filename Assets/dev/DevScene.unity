@@ -533,7 +533,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   PreviewImg: {fileID: 1844314075}
-  BytesPicFileName: test_binary
+  BytesPicFileName: train_set_x
+  PicIdx: 0
 --- !u!1 &1945708478
 GameObject:
   m_ObjectHideFlags: 0
