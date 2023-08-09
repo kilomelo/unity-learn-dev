@@ -53,6 +53,14 @@ namespace Kilomelo.minesweeper.Runtime
             _game.Ready2Go();
             // Debug.Log(_game.ToString());
         }
+
+        private void OnDestroy()
+        {
+            if (null != _game)
+            {
+                _game.Clear();
+            }
+        }
     }
 
     internal class GameLevelControl

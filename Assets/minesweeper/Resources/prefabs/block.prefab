@@ -110,7 +110,7 @@ RectTransform:
   - {fileID: 2689756511136509907}
   - {fileID: 2524591254214108904}
   m_Father: {fileID: 0}
-  m_RootOrder: 0
+  m_RootOrder: -1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -131,7 +131,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _fog: {fileID: 2524591254214108903}
   _fogPushDown: {fileID: 8656868795075650541}
-  _number: {fileID: 2524591255012242019}
+  _numberLabel: {fileID: 2524591255012242019}
 --- !u!1 &2524591254726413406
 GameObject:
   m_ObjectHideFlags: 0

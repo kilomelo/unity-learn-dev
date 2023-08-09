@@ -109,7 +109,7 @@ namespace Kilomelo.minesweeper.Runtime
             var totalTime = CodeStopwatch.ElapsedMilliseconds();
             // Debug.Log($"3bv: {_3bv}");
             // Debug.Log($"board init time cost: {totalTime}");
-            // Debug.Log(this);
+            Debug.Log(this);
         }
 
         internal void SetUsed() { _used = true; }

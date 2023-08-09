@@ -21,8 +21,27 @@ namespace Kilomelo.minesweeper.Runtime
             GameOver
         }
 
+        /// <summary>
+        /// 一次挖掘动作的结果
+        /// </summary>
+        internal enum EDigResult : byte
+        {
+            // 无效操作
+            InvalidOperation,
+            // 地块已挖开
+            Open,
+            // 地块为雷
+            Mine,
+            // 地块正常挖开，且为最小必挖地块
+            MinimalBlock,
+            // 地块正常挖开，不是最小必挖地块
+            NormalBlock
+        }
+
         private readonly List<Board> _boards;
         private Recorder _recorder;
+
+        internal Recorder Recorder => _recorder;
         private EGameState _state = EGameState.NotInitialized;
 
         private EGameState state
@@ -39,6 +58,10 @@ namespace Kilomelo.minesweeper.Runtime
                 {
                     _startTime = DateTime.Now;
                     CurBoard.SetUsed();
+                }
+                else if (EGameState.GameOver == value || EGameState.Win == value)
+                {
+                    _recorder.OnGameOver();
                 }
                 GameStateChanged?.Invoke(_state);
             }
@@ -84,6 +107,11 @@ namespace Kilomelo.minesweeper.Runtime
             }
             _recorder.Init();
             BoardSizeChanged?.Invoke(CurBoard.Width, CurBoard.Height);
+        }
+
+        public void Clear()
+        {
+            _recorder.Clear();
         }
 
         internal void Ready2Go()
@@ -206,28 +234,35 @@ namespace Kilomelo.minesweeper.Runtime
             Debug.Log($"Slow init cnt: {slowInitCnt}");
         }
 
-        internal void Dig(int blockIdx)
+        /// <summary>
+        /// 挖开一个地块
+        /// </summary>
+        /// <param name="blockIdx">地块唯一id</param>
+        /// <returns>挖掘结果</returns>
+        internal EDigResult Dig(int blockIdx)
         {
-            if (EGameState.BeforeStart != _state && EGameState.Playing != _state) return;
+            if (EGameState.BeforeStart != _state && EGameState.Playing != _state) return EDigResult.InvalidOperation;
             if (EGameState.BeforeStart == _state) state = EGameState.Playing;
-            // Debug.Log($"Dig {blockIdx}'s block");
+            Debug.Log($"Game.Dig {blockIdx}'s block");
             // Debug.Log(CurBoard);
             var blockValue = CurBoard.GetBlock(blockIdx);
+            Debug.Log($"Game.Dig, blockValue: {blockValue}");
             if ((int)Board.EBlockType.Mine != blockValue)
             {
                 var blockOpened = _recorder.IsOpened(blockValue > 0 ? blockIdx : blockValue);
-                if (blockOpened) return;
+                if (blockOpened) return 0;
                 if (Open(blockIdx, out var changedBlockIdx))
                 {
+                    var isMinimalBlock = CurBoard.IsMinimalBlock(changedBlockIdx);
                     // 记录
-                    if (CurBoard.IsMinimalBlock(changedBlockIdx))
+                    if (isMinimalBlock)
                     {
-                        // Debug.Log($"{changedBlockIdx} is minimal block");
+                        Debug.Log($"{changedBlockIdx} is minimal block");
                         _recorder.SetOpenedMinimal(changedBlockIdx);
                     }
                     else
                     {
-                        // Debug.Log($"{changedBlockIdx} is NOT minimal block");
+                        Debug.Log($"{changedBlockIdx} is NOT minimal block");
                         _recorder.SetOpened(changedBlockIdx);
                     }
                     GameProgressChanged?.Invoke(_recorder.OpendMinimalClickCnt, CurBoard.ThreeBV);
@@ -236,14 +271,43 @@ namespace Kilomelo.minesweeper.Runtime
                         Debug.Log($"Win, 3bv: {CurBoard.ThreeBV}");
                         state = EGameState.Win;
                     }
-                    // 更新view
-                    BlockChanged?.Invoke(changedBlockIdx);
+
+                    // 记录连续空白方块周边一圈联动打开的方块的打开状态
+                    if (changedBlockIdx < 0)
+                    {
+                        var blockList = CurBoard.GetAreaBlockList(changedBlockIdx);
+                        if (null == blockList)
+                        {
+                            Debug.LogError($"Game.Dig, get area block list {changedBlockIdx} failed, can't find area");
+                        }
+                        else
+                        {
+                            foreach (var idx in blockList)
+                            {
+                                // todo exception
+                                if (0 > idx || idx > CurBoard.BlockCnt - 1) throw new ArgumentOutOfRangeException("");
+                                BlockChanged?.Invoke(idx);
+                                _recorder.SetOpened(idx);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // 更新view
+                        BlockChanged?.Invoke(changedBlockIdx);
+                    }
+
+                    
+                    return isMinimalBlock ? EDigResult.MinimalBlock : EDigResult.NormalBlock;
                 }
+                return EDigResult.InvalidOperation;
             }
             else
             {
                 state = EGameState.GameOver;
                 Debug.Log("Game Over");
+                // _recorder.SaveTrainingDataset(blockIdx, CurBoard, 0);
+                return EDigResult.Mine;
             }
         }
 

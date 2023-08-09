@@ -5,10 +5,10 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 0
+  - enabled: 1
     path: Assets/minesweeper/Demo/Entrance.unity
     guid: d77fe4460ed557e4eb3010abfe8c7c90
-  - enabled: 1
+  - enabled: 0
     path: Assets/unity-learn/Test/TestScene.unity
     guid: 44173f9ca23dd1d438356912a68caba9
   m_configObjects: {}

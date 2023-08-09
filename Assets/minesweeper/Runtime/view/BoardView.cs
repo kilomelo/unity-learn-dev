@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -24,16 +25,21 @@ namespace Kilomelo.minesweeper.Runtime
         [SerializeField] private GameObject _blockTemplate;
         [SerializeField] private GridLayoutGroup _blockLayout;
         [SerializeField] private ScrollRect _scrollRect;
-        [SerializeField] private AudioSource _audioSource;
+        [SerializeField] private AudioSource _audioSourceMininalBlockOpen;
+        [SerializeField] private AudioSource _audioSourceNormalBlockOpen;
         
         private float _blockSize;
         private BlockView[] _blocks;
+        // 复用的地块实例池
         private Stack<BlockView> _blockCache = new Stack<BlockView>();
         private Game _game;
         private int _lastPressedBlockIdx = -1;
 
         // private int _lastHeight = 0;
         // private int _lastWidth = 0;
+        /// <summary>
+        /// View旋转设置，为确保开局不踩雷View可能会再Data的基础上作出旋转
+        /// </summary>
         private bool _horizontalSwap = false;
         private bool _verticalSwap = false;
         private EBoardState _state = EBoardState.Invalid;
@@ -114,7 +120,7 @@ namespace Kilomelo.minesweeper.Runtime
 
         private void BlockChanged(int changedBlockIdx)
         {
-            Debug.Log($"BoardView.BlockChanged({changedBlockIdx})");
+            // Debug.Log($"BoardView.BlockChanged({changedBlockIdx})");
             CheckValid();
             // 如果是单个地块
             if (changedBlockIdx >= 0)
@@ -127,22 +133,23 @@ namespace Kilomelo.minesweeper.Runtime
             // 如果是区域
             else
             {
-                // 根据区域信息刷新block
-                var blockList = _game.CurBoard.GetAreaBlockList(changedBlockIdx);
-                if (null == blockList)
-                {
-                    Debug.LogError($"Refresh area {changedBlockIdx} failed, can't find area");
-                }
-                else
-                {
-                    foreach (var blockIdx in blockList)
-                    {
-                        // todo exception
-                        if (0 > blockIdx || blockIdx > _blocks.Length - 1) throw new ArgumentOutOfRangeException("");
-                        var viewIdx = _game.BlockIdxMirrorTransform(blockIdx, _horizontalSwap, _verticalSwap, _game.CurBoard.Width, _game.CurBoard.Height);
-                        _blocks[viewIdx].Open();
-                    }
-                }
+                Debug.LogError($"BoardView.BlockChanged, invalid changedBlockIdx: {changedBlockIdx}");
+                // // 根据区域信息刷新block
+                // var blockList = _game.CurBoard.GetAreaBlockList(changedBlockIdx);
+                // if (null == blockList)
+                // {
+                //     Debug.LogError($"Refresh area {changedBlockIdx} failed, can't find area");
+                // }
+                // else
+                // {
+                //     foreach (var blockIdx in blockList)
+                //     {
+                //         // todo exception
+                //         if (0 > blockIdx || blockIdx > _blocks.Length - 1) throw new ArgumentOutOfRangeException("");
+                //         var viewIdx = _game.BlockIdxMirrorTransform(blockIdx, _horizontalSwap, _verticalSwap, _game.CurBoard.Width, _game.CurBoard.Height);
+                //         _blocks[viewIdx].Open();
+                //     }
+                // }
             }
         }
 
@@ -230,8 +237,48 @@ namespace Kilomelo.minesweeper.Runtime
         internal void Dig(int blockIdx)
         {
             var dataIdx = _game.BlockIdxMirrorTransform(blockIdx, _horizontalSwap, _verticalSwap, _game.CurBoard.Width, _game.CurBoard.Height);
-            // Debug.Log($"BoardView.Dig({blockIdx}), dataIdx: {dataIdx}, horizontalSwap: {_horizontalSwap}, verticalSwap: {_verticalSwap}, [{this.GetHashCode()}]");
-            _game.Dig(dataIdx);
+            Debug.Log($"BoardView.Dig({blockIdx}), dataIdx: {dataIdx}, horizontalSwap: {_horizontalSwap}, verticalSwap: {_verticalSwap}, _state: {_state}, [{this.GetHashCode()}]");
+
+            var digResult = _game.Dig(dataIdx);
+            if (Game.EDigResult.Mine == digResult)
+            {
+                PlayVibration(200);
+            }
+            else if (Game.EDigResult.MinimalBlock == digResult)
+            {
+                PlayVibration(40);
+                _audioSourceMininalBlockOpen.Play();
+            }
+            else if (Game.EDigResult.NormalBlock == digResult)
+            {
+                PlayVibration(40);
+                _audioSourceNormalBlockOpen.Play();
+            }
+            // 第一次点击不记录数据，因为第一次点击前状态为全盘未知，无法作为训练数据
+            if (EBoardState.Clean != _state)
+            {
+                return;
+            }
+            var yIdx = blockIdx / _game.CurBoard.Width;
+            var xIdx = blockIdx - yIdx * _game.CurBoard.Width;
+            // 收集点击前用户视角盘面状态，记录成数据集供训练
+            var wholeBoardStatusBeforeDig = SerializeWholeBoardStatus();
+            // 收集三个尺寸的局部数据
+            var statusBeforeDigAreaSize1 =  SerializeBlockStatus(blockIdx, 1);
+            var statusBeforeDigAreaSize2 =  SerializeBlockStatus(blockIdx, 2);
+            var statusBeforeDigAreaSize3 =  SerializeBlockStatus(blockIdx, 3);
+            Debug.Log($"BoardView.Dig, digResult: {digResult}");
+            if (Game.EDigResult.Mine == digResult || Game.EDigResult.MinimalBlock == digResult || Game.EDigResult.NormalBlock == digResult)
+            {
+                var resultValue = 0;
+                if ( Game.EDigResult.NormalBlock == digResult) resultValue = 1;
+                if (Game.EDigResult.MinimalBlock == digResult) resultValue = 2;
+                _game.Recorder.SaveTrainingDataset(xIdx, yIdx, _game.CurBoard.Width, _game.CurBoard.Height, statusBeforeDigAreaSize1, resultValue, 1);
+                _game.Recorder.SaveTrainingDataset(xIdx, yIdx, _game.CurBoard.Width, _game.CurBoard.Height, statusBeforeDigAreaSize2, resultValue, 2);
+                _game.Recorder.SaveTrainingDataset(xIdx, yIdx, _game.CurBoard.Width, _game.CurBoard.Height, statusBeforeDigAreaSize3, resultValue, 3);
+                _game.Recorder.SaveTrainingDatasetWholeBoard(xIdx, yIdx, _game.CurBoard.Width, _game.CurBoard.Height, wholeBoardStatusBeforeDig, resultValue);
+                
+            }
         }
 
         public void OnPointerDown(PointerEventData eventData)
@@ -249,7 +296,7 @@ namespace Kilomelo.minesweeper.Runtime
         {
             CheckValid();
             if (_lastPressedBlockIdx < 0) return;
-            Debug.Log($"BoardView.OnPointerUp, pos: {eventData.position}");
+            // Debug.Log($"BoardView.OnPointerUp, pos: {eventData.position}");
             if (EventData2BlockIdx(eventData, out var blockIdx))
             {
                 if (_lastPressedBlockIdx == blockIdx)
@@ -261,14 +308,11 @@ namespace Kilomelo.minesweeper.Runtime
                         
                         _state = EBoardState.ResetBlocksByMirrorState;
                         // Debug.Log($"horizontalSwap: {_horizontalSwap}, verticalSwap: {_verticalSwap}, [{this.GetHashCode()}]");
-                        _blocks[blockIdx].SetBlockType(_game.CurBoard.GetBlock(_game.BlockIdxMirrorTransform(blockIdx, _horizontalSwap, _verticalSwap, _game.CurBoard.Width, _game.CurBoard.Height)), this);
+                        var mirroredBlockidx = _game.BlockIdxMirrorTransform(blockIdx, _horizontalSwap, _verticalSwap, _game.CurBoard.Width, _game.CurBoard.Height);
+                        _blocks[blockIdx].SetBlockType(_game.CurBoard.GetBlock(mirroredBlockidx), this);
                     }
                     
                     _blocks[blockIdx].OnPointerUp();
-#if !UNITY_EDITOR
-                    Vibration.Vibrate(50);
-#endif
-                    _audioSource.Play();
                 }
                 else _blocks[_lastPressedBlockIdx].OnPointerDragExit();
             }
@@ -326,6 +370,73 @@ namespace Kilomelo.minesweeper.Runtime
                 throw new IndexOutOfRangeException();
             }
             return true;
+        }
+
+        private StringBuilder _sb = new StringBuilder();
+        /// <summary>
+        /// 序列化以指定block为中心，一定范围内的盘面状态
+        /// 用于保存区域盘面数据，构建训练数据集
+        /// </summary>
+        /// <param name="blockIdx">位于中心的地块id</param>
+        /// <param name="areaSize">大于0的值，为1时表示3*3大小区域，2时表示5*5大小区域</param>
+        /// <returns>
+        /// 以','分割的字符串，每一格数据为整数意义如下：
+        /// 超过盘面边界：-2；
+        /// 未打开，-1；
+        /// 已打开为周围雷数0-8
+        /// </returns>
+        public string SerializeBlockStatus(int centerBlockIdx, int areaSize)
+        {
+            // ShaderVariantCollection blockIdx = xIdx + yIdx * _game.CurBoard.Width;
+            var yIdx = centerBlockIdx / _game.CurBoard.Width;
+            var xIdx = centerBlockIdx - yIdx * _game.CurBoard.Width;
+            Debug.Log($"BoardView.SerializeBlockStatus, centerBlockIdx: {centerBlockIdx}, areaSize: {areaSize}, xIdx: {xIdx}, yIdx: {yIdx}");
+            _sb.Clear();
+            for (var x = xIdx - areaSize; x <= xIdx + areaSize; x++)
+            {
+                for (var y = yIdx - areaSize; y <= yIdx + areaSize; y++)
+                {
+                    if (x < 0 || x >= _game.CurBoard.Width || y < 0 || y >= _game.CurBoard.Height)
+                    {
+                        _sb.Append($"-2");
+                    }
+                    else
+                    {
+                        var blockIdx = x + y * _game.CurBoard.Width;
+                        _sb.Append(_blocks[blockIdx].GetRuntimeSerializeNumber());
+                    }
+                    if (x != xIdx + areaSize || y != yIdx + areaSize) _sb.Append(',');
+                }
+            }
+
+            return _sb.ToString();
+        }
+
+        /// <summary>
+        /// 序列化整个盘面状态
+        /// 用于保存盘面数据，构建训练数据集
+        /// </summary>
+        /// <returns>
+        /// 以','分割的字符串，每一格数据为整数意义如下：
+        /// 未打开，-1；
+        /// 已打开为周围雷数0-8
+        /// </returns>
+        public string SerializeWholeBoardStatus ()
+        {
+            _sb.Clear();
+            for (var i = 0; i < _blocks.Length; i++)
+            {
+                _sb.Append(_blocks[i].GetRuntimeSerializeNumber());
+                if (i != _blocks.Length - 1) _sb.Append(',');
+            }
+            return _sb.ToString();
+        }
+
+        private void PlayVibration(int timeMiniseconds)
+        {
+#if UNITY_EDITOR
+            Vibration.Vibrate(timeMiniseconds);
+#endif
         }
 
         // private void _game.BlockIdxMirrorTransform_UniTest()
