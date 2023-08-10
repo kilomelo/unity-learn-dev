@@ -85,7 +85,7 @@ namespace Kilomelo.minesweeper.Runtime
         internal void SaveTrainingDatasetWholeBoard(int xIdx, int yIdx, int boardWidth, int boardHeight, string boardStatusString, int resultValue)
         {
             // Debug.Log($"Recorder.SaveTrainingDatasetWholeBoard, xIdx: {xIdx}, yIdx: {yIdx}, boardWidth: {boardWidth}, boardHeight: {boardHeight}, boardStatusString: [{boardStatusString}], resultValue: {resultValue}");
-            var data = $"{boardWidth},{boardHeight},{xIdx},{yIdx},{boardStatusString},{resultValue}";
+            var data = $"{boardWidth},{boardHeight},{xIdx},{yIdx},{boardStatusString},{resultValue}\r\n";
             var datasetSavedFileDir = GetTrainingDatasetSavedFilePath(boardWidth, boardHeight, 0, resultValue);
             // Debug.Log($"Recorder.SaveTrainingDatasetWholeBoard, data: [{data}], GetTrainingDatasetSavedFilePath: {datasetSavedFileDir}");
             if (!_openedFileStream.TryGetValue(datasetSavedFileDir, out var sr))
@@ -101,7 +101,7 @@ namespace Kilomelo.minesweeper.Runtime
         internal void SaveTrainingDataset(int xIdx, int yIdx, int boardWidth, int boardHeight, string statusString, int resultValue, int areaSize)
         {
             // Debug.Log($"Recorder.SaveTrainingDataset, xIdx: {xIdx}, yIdx: {yIdx}, boardWidth: {boardWidth}, boardHeight: {boardHeight}, statusString: [{statusString}], resultValue: {resultValue}, areaSize: {areaSize}");
-            var data = $"{boardWidth},{boardHeight},{xIdx},{yIdx},{statusString},{resultValue}";
+            var data = $"{boardWidth},{boardHeight},{xIdx},{yIdx},{statusString},{resultValue}\r\n";
             var datasetSavedFileDir = GetTrainingDatasetSavedFilePath(boardWidth, boardHeight, areaSize, resultValue);
             // Debug.Log($"Recorder.SaveTrainingDataset, data: [{data}], GetTrainingDatasetSavedFilePath: {datasetSavedFileDir}");
             if (!_openedFileStream.TryGetValue(datasetSavedFileDir, out var sr))
