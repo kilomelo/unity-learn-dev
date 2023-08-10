@@ -140,7 +140,7 @@ namespace Kilomelo.minesweeper.Runtime
 
         internal void ChangeBoardConfig(int width, int height, int mineCnt)
         {
-            Debug.Log($"Game.ChangeBoardConfig width: {width}, height: {height}. mineCnt: {mineCnt}");
+            Debug.Log($"Game.ChangeBoardConfig width: {width}, height: {height}, mineCnt: {mineCnt}, _state: {_state}");
             if (_state != EGameState.BeforeStart && _state != EGameState.Win && _state != EGameState.GameOver) return;
             if (width == CurBoard.Width && height == CurBoard.Height && mineCnt == CurBoard.MineCnt) return;
             Debug.Log("Regenerate boards");

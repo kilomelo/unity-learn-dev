@@ -601,9 +601,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1904984412}
     m_Modifications:
+    - target: {fileID: 450076130990263198, guid: cc613b177f10ff6418a3242c5d2cd59a, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 483912087956466924, guid: cc613b177f10ff6418a3242c5d2cd59a, type: 3}
       propertyPath: m_Name
       value: controlPanel
+      objectReference: {fileID: 0}
+    - target: {fileID: 483912087956466924, guid: cc613b177f10ff6418a3242c5d2cd59a, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 483912087956466931, guid: cc613b177f10ff6418a3242c5d2cd59a, type: 3}
       propertyPath: m_Pivot.x
@@ -688,6 +696,10 @@ PrefabInstance:
     - target: {fileID: 483912087956466931, guid: cc613b177f10ff6418a3242c5d2cd59a, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 483912088083758916, guid: cc613b177f10ff6418a3242c5d2cd59a, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

@@ -20,6 +20,13 @@ namespace Kilomelo.minesweeper.Runtime
             ResetBlocksByMirrorState = 5,
             Clean = 6,
         }
+
+        // 布局规则，盘面宽度与view宽度适配还是盘面高度与view宽度适配
+        private enum ELayoutRule : byte
+        {
+            FitWidth = 0,
+            FitHeight = 1,
+        }
         
         [SerializeField] private Color[] _numberColor;
         [SerializeField] private GameObject _blockTemplate;
@@ -108,7 +115,12 @@ namespace Kilomelo.minesweeper.Runtime
             // todo exception
             _game = game ?? throw new NullReferenceException("");
             if (null == _game.CurBoard) throw new NullReferenceException("");
-            _blockLayout.cellSize = Vector2.one * _scrollRect.viewport.rect.height / _game.CurBoard.Height;
+
+            var layoutRule = _game.CurBoard.Width <= 8 ? ELayoutRule.FitWidth : ELayoutRule.FitHeight;
+            Debug.Log($"BoardView.SetData, layoutRule: {layoutRule}");
+            if (ELayoutRule.FitWidth == layoutRule) _blockLayout.cellSize = Vector2.one * _scrollRect.viewport.rect.width / _game.CurBoard.Width;
+            else _blockLayout.cellSize = Vector2.one * _scrollRect.viewport.rect.height / _game.CurBoard.Height;
+
             _blockSize = _blockLayout.cellSize.x;
             
             _game.BlockChanged += BlockChanged;
@@ -155,7 +167,7 @@ namespace Kilomelo.minesweeper.Runtime
 
         private void GameStateChanged(Game.EGameState gameState)
         {
-            Debug.Log("BoardView.GameStateChanged");
+            Debug.Log($"BoardView.GameStateChanged, gameState: {gameState}");
             CheckValid();
             if (Game.EGameState.BeforeStart == gameState)
             {
@@ -172,7 +184,7 @@ namespace Kilomelo.minesweeper.Runtime
                 _horizontalSwap = false;
                 _verticalSwap = false;
                 _scrollRect.normalizedPosition = new Vector2(0f, 1f);
-                var time = CodeStopwatch.ElapsedMilliseconds();
+                // var time = CodeStopwatch.ElapsedMilliseconds();
                 // Debug.Log($"BoardView init time cost: {time}");
             }
 
@@ -190,9 +202,24 @@ namespace Kilomelo.minesweeper.Runtime
             Debug.Log("BoardView.BoardSizeChanged");
             Clear();
             InitBlocks();
-            _blockLayout.cellSize = Vector2.one * _scrollRect.viewport.rect.height / _game.CurBoard.Height;
+            var layoutRule = width <= 8 ? ELayoutRule.FitWidth : ELayoutRule.FitHeight;
+            Debug.Log($"BoardView.BoardSizeChanged, layoutRule: {layoutRule}");
+            if (ELayoutRule.FitWidth == layoutRule) _blockLayout.cellSize = Vector2.one * _scrollRect.viewport.rect.width / _game.CurBoard.Width;
+            else _blockLayout.cellSize = Vector2.one * _scrollRect.viewport.rect.height / _game.CurBoard.Height;
             _blockSize = _blockLayout.cellSize.x;
             _scrollRect.normalizedPosition = new Vector2(0f, 1f);
+
+            _state = EBoardState.RefreshBlocks;
+            // Debug.Log($"_lastHeight: {_lastHeight}, _lastWidth: {_lastWidth}, _game.CurBoard.Height: {_game.CurBoard.Height}, _game.CurBoard.Width: {_game.CurBoard.Width}");
+            
+            for (var i = 0; i < _game.CurBoard.BlockCnt; i++)
+            {
+                var blockView = _blocks[i];
+                blockView.SetData(i, this);
+            }
+            _state = EBoardState.WaitFirstClick;
+            _horizontalSwap = false;
+            _verticalSwap = false;
         }
 
         private void InitBlocks()
