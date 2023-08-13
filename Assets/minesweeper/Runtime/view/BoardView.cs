@@ -266,6 +266,14 @@ namespace Kilomelo.minesweeper.Runtime
             var dataIdx = _game.BlockIdxMirrorTransform(blockIdx, _horizontalSwap, _verticalSwap, _game.CurBoard.Width, _game.CurBoard.Height);
             Debug.Log($"BoardView.Dig({blockIdx}), dataIdx: {dataIdx}, horizontalSwap: {_horizontalSwap}, verticalSwap: {_verticalSwap}, _state: {_state}, [{this.GetHashCode()}]");
 
+            // 收集点击前用户视角盘面状态，记录成数据集供训练
+            var wholeBoardStatusBeforeDig = SerializeWholeBoardStatus();
+            // 收集三个尺寸的局部数据
+            var statusBeforeDigAreaSize1 =  SerializeBlockStatus(blockIdx, 1);
+            Debug.Log("SerializeBlockStatus: " + statusBeforeDigAreaSize1);
+            var statusBeforeDigAreaSize2 =  SerializeBlockStatus(blockIdx, 2);
+            var statusBeforeDigAreaSize3 =  SerializeBlockStatus(blockIdx, 3);
+
             var digResult = _game.Dig(dataIdx);
             if (Game.EDigResult.Mine == digResult)
             {
@@ -288,12 +296,7 @@ namespace Kilomelo.minesweeper.Runtime
             }
             var yIdx = blockIdx / _game.CurBoard.Width;
             var xIdx = blockIdx - yIdx * _game.CurBoard.Width;
-            // 收集点击前用户视角盘面状态，记录成数据集供训练
-            var wholeBoardStatusBeforeDig = SerializeWholeBoardStatus();
-            // 收集三个尺寸的局部数据
-            var statusBeforeDigAreaSize1 =  SerializeBlockStatus(blockIdx, 1);
-            var statusBeforeDigAreaSize2 =  SerializeBlockStatus(blockIdx, 2);
-            var statusBeforeDigAreaSize3 =  SerializeBlockStatus(blockIdx, 3);
+            
             Debug.Log($"BoardView.Dig, digResult: {digResult}");
             if (Game.EDigResult.Mine == digResult || Game.EDigResult.MinimalBlock == digResult || Game.EDigResult.NormalBlock == digResult)
             {
@@ -417,11 +420,10 @@ namespace Kilomelo.minesweeper.Runtime
             // ShaderVariantCollection blockIdx = xIdx + yIdx * _game.CurBoard.Width;
             var yIdx = centerBlockIdx / _game.CurBoard.Width;
             var xIdx = centerBlockIdx - yIdx * _game.CurBoard.Width;
-            Debug.Log($"BoardView.SerializeBlockStatus, centerBlockIdx: {centerBlockIdx}, areaSize: {areaSize}, xIdx: {xIdx}, yIdx: {yIdx}");
             _sb.Clear();
-            for (var x = xIdx - areaSize; x <= xIdx + areaSize; x++)
+            for (var y = yIdx - areaSize; y <= yIdx + areaSize; y++)
             {
-                for (var y = yIdx - areaSize; y <= yIdx + areaSize; y++)
+                for (var x = xIdx - areaSize; x <= xIdx + areaSize; x++)
                 {
                     if (x < 0 || x >= _game.CurBoard.Width || y < 0 || y >= _game.CurBoard.Height)
                     {
