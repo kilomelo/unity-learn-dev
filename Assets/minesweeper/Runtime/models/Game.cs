@@ -61,7 +61,7 @@ namespace Kilomelo.minesweeper.Runtime
                 }
                 else if (EGameState.GameOver == value || EGameState.Win == value)
                 {
-                    _recorder.OnGameOver();
+                    _recorder.OnGameOver(value, CurBoard.Width, CurBoard.Height);
                 }
                 GameStateChanged?.Invoke(_state);
             }
@@ -250,7 +250,7 @@ namespace Kilomelo.minesweeper.Runtime
             if ((int)Board.EBlockType.Mine != blockValue)
             {
                 var blockOpened = _recorder.IsOpened(blockValue > 0 ? blockIdx : blockValue);
-                if (blockOpened) return 0;
+                if (blockOpened) return EDigResult.InvalidOperation;
                 if (Open(blockIdx, out var changedBlockIdx))
                 {
                     var isMinimalBlock = CurBoard.IsMinimalBlock(changedBlockIdx);
@@ -296,17 +296,16 @@ namespace Kilomelo.minesweeper.Runtime
                         // 更新view
                         BlockChanged?.Invoke(changedBlockIdx);
                     }
-
-                    
+                    _recorder.SavePlayBackAction(blockIdx);
                     return isMinimalBlock ? EDigResult.MinimalBlock : EDigResult.NormalBlock;
                 }
                 return EDigResult.InvalidOperation;
             }
             else
             {
+                _recorder.SavePlayBackAction(blockIdx);
                 state = EGameState.GameOver;
                 Debug.Log("Game Over");
-                // _recorder.SaveTrainingDataset(blockIdx, CurBoard, 0);
                 return EDigResult.Mine;
             }
         }
