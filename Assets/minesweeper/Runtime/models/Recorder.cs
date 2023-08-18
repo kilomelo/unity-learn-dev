@@ -37,11 +37,15 @@ namespace Kilomelo.minesweeper.Runtime
             _playbackData.Clear();
         }
         // 游戏结束都会调用，不管胜利与否
-        internal void OnGameOver(Game.EGameState eGameState, int boardWidth, int boardHeight)
+        internal void OnGameOver(Game.EGameState eGameState, Board board)
         {
             Debug.Log($"Recorder.OnGameOver, eGameState: {eGameState}");
             SaveOpenedFiles(false);
             if (eGameState != Game.EGameState.Win) return;
+            var gameUID = long.Parse(PlayerPrefs.GetString("GAMEUID", "0"));
+            Debug.Log($"Recorder.OnGameOver, gameUID: {gameUID}");
+            PlayerPrefs.SetString("GAMEUID", (gameUID+1).ToString());
+
             var sb = new StringBuilder();
             Debug.Log($"Recorder.OnGameOver, _playbackData.Count: {_playbackData.Count}");
             var i = 0;
@@ -54,7 +58,8 @@ namespace Kilomelo.minesweeper.Runtime
                 else finishTime = playbackClick.x;
                 i++;
             }
-            BestRecord.SubmitRecord(boardWidth, boardHeight, finishTime, sb.ToString());
+            var bestRecord = new BestRecord(board.Width, board.Height);
+            bestRecord.SubmitRecord(gameUID, finishTime, sb.ToString(), board);
         }
 
         internal void Clear()

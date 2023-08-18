@@ -44,6 +44,7 @@ namespace Kilomelo.minesweeper.Runtime
         public int MineCnt => _mineCnt;
         public int BlockCnt => _width * _height;
         public bool Used => _used;
+        public int[] Data => _data;
 
         internal int GetBlock(int idx)
         {
