@@ -2,27 +2,50 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-TWOPI = 2 * np.pi
+loss_values = []
+accuracy_values = []
+predict_acc_values = []
 
-fig, ax = plt.subplots()
+fig, ax1 = plt.subplots()
 
-t = np.arange(0.0, TWOPI, 0.001)
-s = np.sin(t)
-l = plt.plot(t, s)
+color = 'tab:red'
+ax1.set_xlabel('epochs')
+ax1.set_ylabel('loss', color=color)
+ax1.set_ylim(0, 1)
+ax1.set_xlim(0, 10)
+line_loss, = ax1.plot(loss_values, color=color, label='loss')
+ax1.tick_params(axis='y', labelcolor=color)
 
-ax = plt.axis([0, TWOPI, -1, 1])
+# ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+# color = 'tab:blue'
+# ax2.set_ylabel('acc', color=color)  # we already handled the x-label with ax1
+# ax2.set_ylim(0, 1)
+# line_running_acc = ax2.plot(accuracy_values, color=color, label='running acc')
+# line_predict_acc = ax2.plot(predict_acc_values, color='tab:orange', label='predict acc')
+# ax2.tick_params(axis='y', labelcolor=color)
 
-(redDot,) = plt.plot([0], [np.sin(0)], "ro")
+fig.tight_layout()  # otherwise the right y-label is slightly clipped
+plt.title('accuracy and loss')
+plt.legend(loc="center right")
+%matplotlib qt
 
+# def init():
+#     ax1.set_ylim(-1.1, 1.1)
+#     ax1.set_xlim(0, 1)
+#     del xdata[:]
+#     del ydata[:]
+#     line_loss.set_data(xdata, ydata)
+#     return line_loss,
 
-def animate(i):
-    redDot.set_data(i, np.sin(i))
-    return (redDot,)
-
-
+def update_plot(data):
+    epoch_cnt = len(loss_values)
+    xmin, xmax = ax.get_xlim()
+    # 更新x轴范围
+    if epoch_cnt >= xmax:
+        ax1.set_xlim(xmin, 2*xmax)
+        ax1.figure.canvas.draw()
+    line_loss.set_data(range(epoch_cnt), loss_values)
+    return line_loss,
 # create animation using the animate() function
-myAnimation = animation.FuncAnimation(
-    fig, animate, frames=np.arange(0.0, TWOPI, 0.1), interval=10, blit=True, repeat=True
-)
-
+ani = animation.FuncAnimation(fig, update_plot, interval=100, cache_frame_data=False)
 plt.show()
