@@ -1,41 +1,54 @@
 
+using System;
 using System.Collections.Generic;
 using System.IO;
-using Codice.Client.Common;
 using Newtonsoft.Json;
 using UnityEngine;
 
 namespace Kilomelo.minesweeper.Runtime
 {
-    internal static class BestRecord
+    internal class BestRecord
     {
-        private static string GetRecordSaveFileName(int boardWidth, int boardHeight)
-        {
-            return Path.Combine(Application.persistentDataPath, $"BestRecord_{boardWidth}_{boardHeight}.txt");
-        }
         internal class RecordData
         {
             public int BoardWidth;
             public int BoardHeight;
             public int RecordLimit;
-            public List<SingleRecord> Records = new List<SingleRecord>();
+            public SingleRecord[] Records;
             public RecordData(int boardWidth, int boardHeight)
             {
                 BoardWidth = boardWidth;
                 BoardHeight = boardHeight;
-                RecordLimit = 10;
+                RecordLimit = 3;
+                Records = new SingleRecord[0];
             }
             public class SingleRecord
             {
                 public int FinishTime;
+                public string Date;
+                public int ThreeBV;
+                public int[] BoardData;
                 public string PlaybackData;
+                public long GameUID;
             }
         }
 
-        public static void SubmitRecord(int boardWidth, int boardHeight, int finishTime, string playbackData)
+        private int _boardWidth;
+        private int _boardHeight;
+        internal BestRecord(int boardWidth, int boardHeight)
+        {
+            _boardWidth = boardWidth;
+            _boardHeight = boardHeight;
+        }
+        protected virtual string GetRecordSaveFileName()
+        {
+            return Path.Combine(Application.persistentDataPath, $"BestRecord_{_boardWidth}_{_boardHeight}.txt");
+        }
+
+        public virtual void SubmitRecord(long gameUID, int finishTime, string playbackData, Board board)
         {
             Debug.Log($"BestRecord.SubmitRecord, finishTime: {finishTime}, playbackData: {playbackData}");
-            var saveFilePath = GetRecordSaveFileName(boardWidth, boardHeight);
+            var saveFilePath = GetRecordSaveFileName();
             using var fs = new FileStream(saveFilePath, FileMode.OpenOrCreate);
             using var sr = new StreamReader(fs);
             var existData = sr.ReadToEnd();
@@ -44,7 +57,7 @@ namespace Kilomelo.minesweeper.Runtime
             if (string.IsNullOrEmpty(existData))
             {
                 Debug.Log($"BestRecord.SubmitRecord, Create record data");
-                data = new RecordData(boardWidth, boardHeight);
+                data = new RecordData(_boardWidth, _boardHeight);
             }
             else
             {
@@ -53,28 +66,34 @@ namespace Kilomelo.minesweeper.Runtime
             }
             sr.Dispose();
             Debug.Log($"data:\n{JsonConvert.SerializeObject(data)}");
-
-            // var insertPos = int.MaxValue;
-            var i = 0;
-            for (; i < data.Records.Count; i++)
+            var newSingleRecord = new RecordData.SingleRecord
             {
-                if (data.Records[i].FinishTime > finishTime)
+                FinishTime = finishTime,
+                PlaybackData = playbackData,
+                Date = DateTime.Now.ToString("yyMMddHHmm"),
+                ThreeBV = board.ThreeBV,
+                BoardData = board.Data,
+                GameUID = gameUID
+            };
+            var i = 0;
+            var recordList = new List<RecordData.SingleRecord>(data.Records);
+            for (; i < recordList.Count; i++)
+            {
+                if (CompareRecord(data.Records[i], newSingleRecord))
                 {
-                    // insertPos = i;
                     break;
                 }
             }
             if (i < data.RecordLimit)
             {
-                var newRecord = new RecordData.SingleRecord();
-                newRecord.FinishTime = finishTime;
-                newRecord.PlaybackData = playbackData;
-                data.Records.Insert(i, newRecord);
-                while(data.Records.Count > data.RecordLimit)
+                
+                recordList.Insert(i, newSingleRecord);
+                while(recordList.Count > data.RecordLimit)
                 {
-                    data.Records.RemoveAt(data.Records.Count - 1);
+                    recordList.RemoveAt(recordList.Count - 1);
                 }
-                var newRecordString = JsonConvert.SerializeObject(data);
+                data.Records = recordList.ToArray();
+                var newRecordString = JsonConvert.SerializeObject(data, Formatting.Indented);
                 Debug.Log($"BestRecord.SubmitRecord, newRecordString: {newRecordString}");
                 using var fs1 = new FileStream(saveFilePath, FileMode.Open);
                 using var fr = new StreamWriter(fs1);
@@ -83,8 +102,13 @@ namespace Kilomelo.minesweeper.Runtime
             }
             else
             {
-                Debug.Log($"BestRecord.SubmitRecord, finish time bigger than {data.RecordLimit}'s record, ignore");
+                Debug.Log($"BestRecord.SubmitRecord, bad than {data.RecordLimit}'s record, ignore");
             }
+        }
+
+        protected virtual bool CompareRecord(RecordData.SingleRecord rec1, RecordData.SingleRecord rec2)
+        {
+            return rec1.FinishTime < rec2.FinishTime;
         }
     }
 }

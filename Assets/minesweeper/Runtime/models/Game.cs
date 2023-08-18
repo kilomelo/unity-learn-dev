@@ -61,7 +61,7 @@ namespace Kilomelo.minesweeper.Runtime
                 }
                 else if (EGameState.GameOver == value || EGameState.Win == value)
                 {
-                    _recorder.OnGameOver(value, CurBoard.Width, CurBoard.Height);
+                    _recorder.OnGameOver(value, CurBoard);
                 }
                 GameStateChanged?.Invoke(_state);
             }
