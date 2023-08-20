@@ -13,16 +13,20 @@ namespace Kilomelo.minesweeper.Runtime
         [SerializeField] private TextMeshProUGUI _levelLabel;
         [SerializeField] private Button _newGameBtn;
         [SerializeField] private Button _changeLevelBtn;
-        [SerializeField] private GameObject _win;
-        [SerializeField] private GameObject _gameOver;
+        [SerializeField] private HorizontalLayoutGroup _changeLevelBtnLayout;
+        // 打开排行榜按钮
+        [SerializeField] private Button _leaderBoardBtn;
+        [SerializeField] private GameObject _leaderBoardViewGameObject;
+        // [SerializeField] private GameObject _win;
+        // [SerializeField] private GameObject _gameOver;
 
-        private string[] _levelNames = new[] {"S", "M", "L"};
+        // private string[] _levelNames = new[] {"8*8", "M", "L"};
         
         private Game _game;
         private GameLevelControl _lvlCtrl;
         private void Awake()
         {
-            if (null == _newGameBtn || null == _changeLevelBtn || null == _win || null == _gameOver ||
+            if (null == _newGameBtn || null == _changeLevelBtn ||
                 null == _levelLabel || null == _gameProgressLabel || null == _gameProgressImage || null == _timerLabel)
             {
                 // todo exception
@@ -30,6 +34,7 @@ namespace Kilomelo.minesweeper.Runtime
             }
             _newGameBtn.onClick.AddListener(NewGame);
             _changeLevelBtn.onClick.AddListener(ChangeLevel);
+            _leaderBoardBtn.onClick.AddListener(OpenLeaderBoard);
         }
 
         private void Update()
@@ -60,38 +65,46 @@ namespace Kilomelo.minesweeper.Runtime
             _lvlCtrl.ChangeToNextLevel();
         }
 
+        private void OpenLeaderBoard()
+        {
+            _leaderBoardViewGameObject.SetActive(!_leaderBoardViewGameObject.activeSelf);
+        }
+
         private void GameStateChanged(Game.EGameState gameState)
         {
             if (Game.EGameState.Win == gameState)
             {
-                _win.SetActive(true);
-                _gameOver.SetActive(false);
+                // _win.SetActive(true);
+                // _gameOver.SetActive(false);
                 _changeLevelBtn.interactable = true;
             }
             else if (Game.EGameState.GameOver == gameState)
             {
-                _win.SetActive(false);
-                _gameOver.SetActive(true);
+                // _win.SetActive(false);
+                // _gameOver.SetActive(true);
                 _changeLevelBtn.interactable = true;
             }
             else if (Game.EGameState.BeforeStart == gameState)
             {
                 _timerLabel.text = string.Format("{0} s", 0);
-                _win.SetActive(false);
-                _gameOver.SetActive(false);
+                // _win.SetActive(false);
+                // _gameOver.SetActive(false);
                 _changeLevelBtn.interactable = true;
             }
             else
             {
-                _win.SetActive(false);
-                _gameOver.SetActive(false);
+                // _win.SetActive(false);
+                // _gameOver.SetActive(false);
                 _changeLevelBtn.interactable = false;
             }
         }
         
         private void BoardSizeChanged(int width, int height)
         {
-            _levelLabel.text = _levelNames[Math.Clamp(_lvlCtrl.CurrentLevelIdx, 0, _levelNames.Length - 1)];
+            _levelLabel.text = $"{width}*{height}";//_levelNames[Math.Clamp(_lvlCtrl.CurrentLevelIdx, 0, _levelNames.Length - 1)];
+            Canvas.ForceUpdateCanvases();
+            _changeLevelBtnLayout.enabled = false;
+            _changeLevelBtnLayout.enabled = true;
         }
 
         private void GameProgressChanged(int current, int threeBV)

@@ -9,6 +9,7 @@ namespace Kilomelo.minesweeper.Runtime
         [SerializeField] private BoardView _boardView;
         [SerializeField] private ControlView _controlView;
         [SerializeField] private ResultView _resultView;
+        [SerializeField] private LeaderBoardView _leaderBoardView;
         [SerializeField] private int randSeed = 0;
 
         [SerializeField] private Vector3Int[] _levelConfigs;
@@ -50,6 +51,7 @@ namespace Kilomelo.minesweeper.Runtime
             _boardView.SetData(_game);
             _controlView.SetData(_game, _lvlCtrl);
             _resultView.SetData(_game);
+            _leaderBoardView.SetData(_game);
             _game.Ready2Go();
             // Debug.Log(_game.ToString());
         }

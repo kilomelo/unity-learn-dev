@@ -8,6 +8,7 @@ namespace Kilomelo.minesweeper.Runtime
 {
     public class Recorder
     {
+        public Action<bool, long, string> GameResultEvent;
         private Dictionary<int, int> _openedBlocks = new Dictionary<int, int>();
         private Dictionary<int, int> _openedMinimalClickBlocks = new Dictionary<int, int>();
 
@@ -41,10 +42,6 @@ namespace Kilomelo.minesweeper.Runtime
         {
             Debug.Log($"Recorder.OnGameOver, eGameState: {eGameState}");
             SaveOpenedFiles(false);
-            if (eGameState != Game.EGameState.Win) return;
-            var gameUID = long.Parse(PlayerPrefs.GetString("GAMEUID", "0"));
-            Debug.Log($"Recorder.OnGameOver, gameUID: {gameUID}");
-            PlayerPrefs.SetString("GAMEUID", (gameUID+1).ToString());
 
             var sb = new StringBuilder();
             Debug.Log($"Recorder.OnGameOver, _playbackData.Count: {_playbackData.Count}");
@@ -58,8 +55,46 @@ namespace Kilomelo.minesweeper.Runtime
                 else finishTime = playbackClick.x;
                 i++;
             }
-            var bestRecord = new BestRecord(board.Width, board.Height);
-            bestRecord.SubmitRecord(gameUID, finishTime, sb.ToString(), board);
+
+            if (eGameState != Game.EGameState.Win) {
+                GameResultEvent?.Invoke(false, finishTime, string.Empty);
+                return;
+            }
+
+            var gameUID = long.Parse(PlayerPrefs.GetString("GAMEUID", "0"));
+            Debug.Log($"Recorder.OnGameOver, gameUID: {gameUID}");
+            PlayerPrefs.SetString("GAMEUID", (gameUID+1).ToString());
+
+            StringBuilder resultContent = new StringBuilder();
+
+            var bestRecordTime = new TimeRecord(board.Width, board.Height);
+            var result = bestRecordTime.SubmitRecord(gameUID, finishTime, sb.ToString(), board);
+            Debug.Log(result);
+            if (!string.IsNullOrEmpty(result)) resultContent.Append(result);
+            var bestRecord3BV = new ThreeBVRecord(board.Width, board.Height);
+            result = bestRecord3BV.SubmitRecord(gameUID, finishTime, sb.ToString(), board);
+            Debug.Log(result);
+            if (!string.IsNullOrEmpty(result)) {
+                if (resultContent.Length > 0) resultContent.Append('\n');
+                resultContent.Append(result);
+            }
+            var bestRecordTimeRecent = new TimeRecordRecent(board.Width, board.Height, 100);
+            result = bestRecordTimeRecent.SubmitRecord(gameUID, finishTime, sb.ToString(), board);
+            Debug.Log(result);
+            if (!string.IsNullOrEmpty(result)) {
+                if (resultContent.Length > 0) resultContent.Append('\n');
+                resultContent.Append(result);
+            }
+
+            var bestRecord3BVRecent = new ThreeBVRecordRecent(board.Width, board.Height, 100);
+            result = bestRecord3BVRecent.SubmitRecord(gameUID, finishTime, sb.ToString(), board);
+            Debug.Log(result);
+            if (!string.IsNullOrEmpty(result)) {
+                if (resultContent.Length > 0) resultContent.Append('\n');
+                resultContent.Append(result);
+            }
+
+            GameResultEvent?.Invoke(true, finishTime, resultContent.ToString());
         }
 
         internal void Clear()

@@ -11,7 +11,10 @@ namespace Kilomelo.minesweeper.Runtime
         [SerializeField] private TextMeshProUGUI _timeLabel;
         [SerializeField] private TextMeshProUGUI _3bvLabel;
         [SerializeField] private TextMeshProUGUI _3bvsLabel;
+        [SerializeField] private TextMeshProUGUI _recordLabel;
         [SerializeField] private Button _continueBtn;
+        [SerializeField] private VerticalLayoutGroup _layout;
+        // [SerializeField] private Canvas _canvas;
 
         private Game _game;
         private void Awake()
@@ -29,6 +32,7 @@ namespace Kilomelo.minesweeper.Runtime
         {
             _game = game;
             _game.GameStateChanged += GameStateChanged;
+            _game.Recorder.GameResultEvent += GameResult;
         }
 
         private void Continue()
@@ -37,21 +41,24 @@ namespace Kilomelo.minesweeper.Runtime
             _game.Restart();
         }
 
-        private void GameStateChanged(Game.EGameState gameState)
+        private void GameResult(bool win, long timeMilliseconnds, string recordInfo)
         {
-            if (Game.EGameState.Win == gameState || Game.EGameState.GameOver == gameState)
-            {
-                gameObject.SetActive(true);
-                _resultLabel.text = $"Result: {(Game.EGameState.Win == gameState ? "Complete" : "Failed")}";
-                var timeDelta = DateTime.Now - _game.StartTime;
-                _timeLabel.text = $"Time: {timeDelta.TotalMilliseconds * 0.001f:F1} s";
-                _3bvLabel.text = $"3BV: {_game.CompleteMinimalClick} / {_game.CurBoard.ThreeBV}";
-                Debug.Log($"_game.CompleteMinimalClick: {_game.CompleteMinimalClick}");
-                var threeBVPerSec = (int)((float) _game.CompleteMinimalClick / timeDelta.TotalMilliseconds * 1000 * 100) * 0.01f;
-                _3bvsLabel.text = $"3BV/s: {threeBVPerSec}";
-            }
-
-            if (Game.EGameState.BeforeStart == gameState)
+            Debug.Log($"ResultView.GameResult, win: {win}, timeMilliseconnds: {timeMilliseconnds}, recordInfo: {recordInfo}");
+            _resultLabel.text = $"{(win ? "完成" : "未完成")}";
+            // var timeDelta = DateTime.Now - _game.StartTime;
+            _timeLabel.text = $"{timeMilliseconnds * 0.001f:F1} s";
+            _3bvLabel.text = $"{_game.CompleteMinimalClick} / {_game.CurBoard.ThreeBV}";
+            _3bvsLabel.text = $"{(float)_game.CompleteMinimalClick / timeMilliseconnds * 1000:F1}";
+            _recordLabel.enabled = !string.IsNullOrEmpty(recordInfo);
+            _recordLabel.text = recordInfo;
+            gameObject.SetActive(true);
+            Canvas.ForceUpdateCanvases();
+            _layout.enabled = false;
+            _layout.enabled = true;
+        }
+        private void GameStateChanged(Game.EGameState eGameState)
+        {
+            if (Game.EGameState.BeforeStart == eGameState)
             {
                 gameObject.SetActive(false);
             }
