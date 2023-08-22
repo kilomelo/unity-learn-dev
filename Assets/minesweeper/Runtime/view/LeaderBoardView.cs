@@ -10,12 +10,14 @@ namespace Kilomelo.minesweeper.Runtime
 {
     public class LeaderBoardView : MonoBehaviour
     {
-        [SerializeField] private TextMeshProUGUI _leaderBoardContent;
         [SerializeField] private TextMeshProUGUI _switchBtnText;
         [SerializeField] private Button _continueBtn;
         [SerializeField] private Button _switchBtn;
         [SerializeField] private VerticalLayoutGroup _layout;
         [SerializeField] private CanvasGroup _canvasGroup;
+
+        [SerializeField] private LeaderboardItem[] _leaderboardItems;
+        [SerializeField] private TextMeshProUGUI _noRecordTip;
         // [SerializeField] private ContentSizeFilter _sizeFilter;
 
         private readonly string[] _leaderBoardTitles = new string[] {
@@ -44,6 +46,7 @@ namespace Kilomelo.minesweeper.Runtime
 
         private void RefreshContent()
         {
+            Debug.Log("LeaderBoardView.RefreshContent");
             var boardWidth = _game.CurBoard.Width;
             var boardHeight = _game.CurBoard.Height;
             var leaderBoardType = _leaderBoardTypes[_leaderBoardIdx];
@@ -53,8 +56,28 @@ namespace Kilomelo.minesweeper.Runtime
                 record = (BestRecord)Activator.CreateInstance(leaderBoardType, boardWidth, boardHeight, 100);
             }
             else record = (BestRecord)Activator.CreateInstance(leaderBoardType, boardWidth, boardHeight);
-            _leaderBoardContent.text = record.GetDisplayRecordListString();
-            
+            var recordCnt = record.IterateRecords((i, finishTime,threebv, date) =>
+            {
+                if (i >= _leaderboardItems.Length)
+                {
+                    Debug.Log("LeaderBoardView.RefreshContent, i >= _leaderboardItems.Length");
+                    return;
+                }
+
+                _leaderboardItems[i].TimeLabel.text = $"{finishTime * 0.001f:F1}";
+                _leaderboardItems[i].ThreebvLabel.text = threebv.ToString();
+                _leaderboardItems[i].ThreebvsLabel.text = $"{(float)threebv / finishTime * 1000:F1}";
+                _leaderboardItems[i].DateLabel.text = date;
+                _leaderboardItems[i].gameObject.SetActive(true);
+            });
+            Debug.Log($"LeaderBoardView.RefreshContent, recordCnt: {recordCnt}");
+
+            for (var i = recordCnt; i < _leaderboardItems.Length; i++)
+            {
+                _leaderboardItems[i].gameObject.SetActive(false);
+            }
+
+            _noRecordTip.gameObject.SetActive(recordCnt == 0);
             _switchBtnText.text = _leaderBoardTitles[_leaderBoardIdx];
             StartCoroutine(RefreshContentSize());
         }

@@ -139,8 +139,32 @@ namespace Kilomelo.minesweeper.Runtime
             return result;
         }
 
-        public string GetDisplayRecordListString()
+        // public string GetDisplayRecordListString()
+        // {
+        //     var saveFilePath = GetRecordSaveFileName();
+        //     using var fs = new FileStream(saveFilePath, FileMode.OpenOrCreate);
+        //     using var sr = new StreamReader(fs);
+        //     var existData = sr.ReadToEnd();
+        //     sr.Dispose();
+        //     RecordData data;
+        //     if (string.IsNullOrEmpty(existData))
+        //     {
+        //         data = new RecordData(boardWidth: _boardWidth, _boardHeight);
+        //     }
+        //     else
+        //     {
+        //         data = JsonConvert.DeserializeObject<RecordData>(existData);
+        //     }
+        //     return data.RecordListString();
+        // }
+
+        public int IterateRecords(Action<int, int, int, string> func)
         {
+            if (null == func)
+            {
+                Debug.LogError("BestRecord.IterateRecords, func is null");
+                return 0;
+            }
             var saveFilePath = GetRecordSaveFileName();
             using var fs = new FileStream(saveFilePath, FileMode.OpenOrCreate);
             using var sr = new StreamReader(fs);
@@ -155,7 +179,13 @@ namespace Kilomelo.minesweeper.Runtime
             {
                 data = JsonConvert.DeserializeObject<RecordData>(existData);
             }
-            return data.RecordListString();
+
+            for (var i = 0; i < data.Records.Count; i++)
+            {
+                var rec = data.Records[i];
+                func.Invoke(i, rec.FinishTime, rec.ThreeBV, rec.Date);
+            }
+            return data.Records.Count;
         }
 
         protected virtual void PostLoadRecordData(ref RecordData data)
