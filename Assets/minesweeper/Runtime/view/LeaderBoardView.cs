@@ -56,7 +56,7 @@ namespace Kilomelo.minesweeper.Runtime
                 record = (BestRecord)Activator.CreateInstance(leaderBoardType, boardWidth, boardHeight, 100);
             }
             else record = (BestRecord)Activator.CreateInstance(leaderBoardType, boardWidth, boardHeight);
-            var recordCnt = record.IterateRecords((i, finishTime,threebv, date) =>
+            var recordCnt = record.IterateRecords((i, finishTime,threebv, date, boardData, playbackData) =>
             {
                 if (i >= _leaderboardItems.Length)
                 {
@@ -69,6 +69,10 @@ namespace Kilomelo.minesweeper.Runtime
                 _leaderboardItems[i].ThreebvsLabel.text = $"{(float)threebv / finishTime * 1000:F1}";
                 _leaderboardItems[i].DateLabel.text = date;
                 _leaderboardItems[i].gameObject.SetActive(true);
+                _leaderboardItems[i].OnClick += () =>
+                {
+                    _game.LoadBoard(boardData);
+                };
             });
             Debug.Log($"LeaderBoardView.RefreshContent, recordCnt: {recordCnt}");
 
