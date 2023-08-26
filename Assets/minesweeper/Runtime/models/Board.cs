@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Newtonsoft.Json;
 using UnityEngine;
 using Random = System.Random;
 
@@ -70,16 +71,59 @@ namespace Kilomelo.minesweeper.Runtime
 
         internal void Init(Random rand)
         {
-            Debug.Log($"Board.Init, board hash: {GetHashCode()}");
+            Debug.Log($"Board.Init, board hash: {GetHashCode()}, this: {this}");
             CodeStopwatch.Start();
             _used = false;
             rand.Shuffle(_data);
+            Debug.Log($"Board.Init, 0, this: {this}");
+
             // 标记周围地雷数量
             for (var i = 0; i < _data.Length; i++)
             {
                 if ((int) EBlockType.Mine == _data[i]) continue;
                 _data[i] = CountNeighberMines(i, _data);
             }
+            Debug.Log($"Board.Init, 1, this: {this}");
+            // 标记连续空白
+            _3bvBlockListDic = new Dictionary<int, List<int>>();
+            var areaIdx = -1;
+            List<int> listOfBlockIdx = new List<int>();
+            for (var i = 0; i < _data.Length; i++)
+            {
+                var areaSize = FillBlank(_data, i, areaIdx, listOfBlockIdx);
+                if (areaSize > 0)
+                {
+                    _3bvBlockListDic[areaIdx] = listOfBlockIdx;
+                    areaIdx--;
+                    listOfBlockIdx = new List<int>();
+                }
+                // todo exception
+                if (int.MinValue == areaIdx) throw new IndexOutOfRangeException("");
+            }
+            Debug.Log($"Board.Init, 2, this: {this}");
+            Debug.Log($"Board.Init, 2, _3bvBlockListDic.Count: {_3bvBlockListDic.Count}, areaIdx: {areaIdx}");
+            // 统计3bv
+            _3bv = -areaIdx - 1;
+            for (var i = 0; i < _data.Length; i++)
+            {
+                if ((int) EBlockType.Mine == _data[i] || _data[i] < 0) continue;
+                if (AnyNeighberBlank(i, _data)) continue;
+                _3bvBlockListDic[i] = null;
+                _3bv++;
+            }
+            Debug.Log($"Board.Init, 3, _3bvBlockListDic.Count: {_3bvBlockListDic.Count}, _3bv: {_3bv}");
+
+            var totalTime = CodeStopwatch.ElapsedMilliseconds();
+            // Debug.Log($"3bv: {_3bv}");
+            // Debug.Log($"board init time cost: {totalTime}");
+            Debug.Log(this);
+        }
+
+        internal void LoadFromRawData(int[] boardData)
+        {
+            Debug.Log($"Board.LoadFromRawData, this: {this}");
+            _data = boardData;
+            Debug.Log($"Board.LoadFromRawData, 1 this: {this}");
 
             // 标记连续空白
             _3bvBlockListDic = new Dictionary<int, List<int>>();
@@ -106,11 +150,7 @@ namespace Kilomelo.minesweeper.Runtime
                 _3bvBlockListDic[i] = null;
                 _3bv++;
             }
-
-            var totalTime = CodeStopwatch.ElapsedMilliseconds();
-            // Debug.Log($"3bv: {_3bv}");
-            // Debug.Log($"board init time cost: {totalTime}");
-            Debug.Log(this);
+            Debug.Log($"Board.LoadFromRawData, after this: {this}");
         }
 
         internal void SetUsed() { _used = true; }

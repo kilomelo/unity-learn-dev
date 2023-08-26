@@ -158,7 +158,7 @@ namespace Kilomelo.minesweeper.Runtime
         //     return data.RecordListString();
         // }
 
-        public int IterateRecords(Action<int, int, int, string> func)
+        public int IterateRecords(Action<int, int, int, string, int[], string> func)
         {
             if (null == func)
             {
@@ -183,7 +183,7 @@ namespace Kilomelo.minesweeper.Runtime
             for (var i = 0; i < data.Records.Count; i++)
             {
                 var rec = data.Records[i];
-                func.Invoke(i, rec.FinishTime, rec.ThreeBV, rec.Date);
+                func.Invoke(i, rec.FinishTime, rec.ThreeBV, rec.Date, rec.BoardData, rec.PlaybackData);
             }
             return data.Records.Count;
         }

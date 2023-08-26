@@ -130,12 +130,18 @@ namespace Kilomelo.minesweeper.Runtime
             {
                 board.Init(_rand);
             }
-            // todo 处理记录，写入数据文件
-            // _recorder = new Recorder();
             _recorder.Init();
             state = EGameState.BeforeStart;
             GameProgressChanged?.Invoke(0, CurBoard.ThreeBV);
             // Restart(CurBoard.Width, CurBoard.Height, CurBoard.MineCnt);
+        }
+
+        internal void LoadBoard(int[] boardData)
+        {
+            CurBoard.LoadFromRawData(boardData);
+            _recorder.Init();
+            state = EGameState.BeforeStart;
+            GameProgressChanged?.Invoke(0, CurBoard.ThreeBV);
         }
 
         internal void ChangeBoardConfig(int width, int height, int mineCnt)
