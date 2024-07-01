@@ -42,7 +42,9 @@ namespace Kilomelo.minesweeper.Runtime
             if (null == _game) return;
             if (_game.State != Game.EGameState.Playing) return;
             var timeDelta = DateTime.Now - _game.StartTime;
-            _timerLabel.text = $"{timeDelta.Seconds} s";
+            var displayTimeSeconds = Mathf.Floor((float)timeDelta.TotalSeconds);
+            if (displayTimeSeconds > 999) displayTimeSeconds = 999;
+            _timerLabel.text = $"{displayTimeSeconds} s";
         }
 
         internal void SetData(Game game, GameLevelControl levelCtrl)

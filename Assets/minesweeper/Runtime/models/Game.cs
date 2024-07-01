@@ -136,6 +136,7 @@ namespace Kilomelo.minesweeper.Runtime
             // Restart(CurBoard.Width, CurBoard.Height, CurBoard.MineCnt);
         }
 
+        // 载入一组盘面数据设为当前盘面
         internal void LoadBoard(int[] boardData)
         {
             CurBoard.LoadFromRawData(boardData);

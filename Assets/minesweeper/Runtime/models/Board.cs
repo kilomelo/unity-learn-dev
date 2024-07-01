@@ -111,8 +111,12 @@ namespace Kilomelo.minesweeper.Runtime
                 _3bvBlockListDic[i] = null;
                 _3bv++;
             }
-            Debug.Log($"Board.Init, 3, _3bvBlockListDic.Count: {_3bvBlockListDic.Count}, _3bv: {_3bv}");
-
+            // Debug.Log($"Board.Init, 3, _3bvBlockListDic.Count: {_3bvBlockListDic.Count}, _3bv: {_3bv}");
+            // Debug.Log($"Board.LoadFromRawData, after _3bvBlockListDic,Count: {_3bvBlockListDic.Count}, _3bv: {_3bv}");
+            // foreach (var itm in _3bvBlockListDic)
+            // {
+            //     Debug.Log($"key: {itm.Key}, value: {itm.Value}");
+            // }
             var totalTime = CodeStopwatch.ElapsedMilliseconds();
             // Debug.Log($"3bv: {_3bv}");
             // Debug.Log($"board init time cost: {totalTime}");
@@ -124,6 +128,12 @@ namespace Kilomelo.minesweeper.Runtime
             Debug.Log($"Board.LoadFromRawData, this: {this}");
             _data = boardData;
             Debug.Log($"Board.LoadFromRawData, 1 this: {this}");
+
+            // 抹掉被标记过的负数地块，以便重新标记和统计
+            for (var i = 0; i < _data.Length; i++)
+            {
+                if (_data[i] < 0) _data[i] = 0;
+            }
 
             // 标记连续空白
             _3bvBlockListDic = new Dictionary<int, List<int>>();
@@ -150,7 +160,11 @@ namespace Kilomelo.minesweeper.Runtime
                 _3bvBlockListDic[i] = null;
                 _3bv++;
             }
-            Debug.Log($"Board.LoadFromRawData, after this: {this}");
+            // Debug.Log($"Board.LoadFromRawData, after _3bvBlockListDic,Count: {_3bvBlockListDic.Count}, _3bv: {_3bv}");
+            // foreach (var itm in _3bvBlockListDic)
+            // {
+                // Debug.Log($"key: {itm.Key}, value: {itm.Value}");
+            // }
         }
 
         internal void SetUsed() { _used = true; }

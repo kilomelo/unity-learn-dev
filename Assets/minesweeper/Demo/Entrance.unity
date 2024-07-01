@@ -525,17 +525,9 @@ PrefabInstance:
       propertyPath: m_SizeDelta.x
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 1762875781, guid: cc613b177f10ff6418a3242c5d2cd59a, type: 3}
-      propertyPath: m_ChildForceExpandWidth
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 483912087956466924, guid: cc613b177f10ff6418a3242c5d2cd59a, type: 3}
       propertyPath: m_Name
       value: controlPanel
-      objectReference: {fileID: 0}
-    - target: {fileID: 483912087956466924, guid: cc613b177f10ff6418a3242c5d2cd59a, type: 3}
-      propertyPath: m_IsActive
-      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 483912087956466928, guid: cc613b177f10ff6418a3242c5d2cd59a, type: 3}
       propertyPath: _leaderBoardViewGameObject
